@@ -19,16 +19,6 @@ class DumpUiAction : AnAction() {
     }
 }
 
-//fun main() {
-//    val adbDump = dumpUiAutomator()
-//    if (adbDump != null) {
-//        println("UI Automator Dump:")
-//        println(adbDump)
-//    } else {
-//        println("Failed to get UI Automator dump.")
-//    }
-//}
-
 fun getAdbPath(): String? {
     val localPropertiesFile = File("local.properties")
     if (!localPropertiesFile.exists()) return "adb"

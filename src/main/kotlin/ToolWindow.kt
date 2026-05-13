@@ -32,9 +32,9 @@ class ArpToolWindow(private val project: Project) {
         panel.add(scrollPane, BorderLayout.CENTER)
 
         dumpButton.addActionListener {
-            val dump = dumpUiAutomator()
+            val dump = dumpUiAutomator()?.let { UIAutomatorParser.parse(it) }
             if (dump != null) {
-                textArea.text = dump
+                textArea.text = dump.toString()
             } else {
                 textArea.text = "Failed to get UI Automator dump."
             }
