@@ -1,0 +1,27 @@
+<!-- Plugin Configuration File. See https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <id>cz.talich.arp</id>
+    <name>ARP - Accessibility Report</name>
+    <vendor>Talich</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Accessibility Report"
+                    secondary="true"
+                    anchor="right"
+                    factoryClass="cz.talich.arp.ArpToolWindowFactory"
+                    icon="AllIcons.General.Modified"/>
+    </extensions>
+
+    <actions>
+        <group id="cz.talich.arp.ToolsMenu" text="Accessibility Report" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="cz.talich.arp.DumpUiAction"
+                    class="cz.talich.arp.DumpUiAction"
+                    text="Dump UI Automator"
+                    description="Dumps UI Automator from connected device">
+            </action>
+        </group>
+    </actions>
+</idea-plugin>
