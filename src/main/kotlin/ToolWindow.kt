@@ -1,12 +1,15 @@
 package cz.talich.arp
 
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
-import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.awt.BorderLayout
 import javax.swing.JButton
 import javax.swing.JTextArea
@@ -32,11 +35,19 @@ class ArpToolWindow(private val project: Project) {
         panel.add(scrollPane, BorderLayout.CENTER)
 
         dumpButton.addActionListener {
-            val dump = dumpUiAutomator()?.let { UIAutomatorParser.parse(it) }
-            if (dump != null) {
-                textArea.text = dump.toString()
-            } else {
-                textArea.text = "Failed to get UI Automator dump."
+            val cs = project.service<ProjectCoroutineScopeHolder>().scope
+            cs.launch {
+                val dumpNode = withContext(Dispatchers.IO) {
+                    dumpUiAutomator()?.let { UIAutomatorParser.parse(it) }
+                }
+                
+                withContext(Dispatchers.Main) {
+                    if (dumpNode != null) {
+                        textArea.text = dumpNode.toString()
+                    } else {
+                        textArea.text = "Failed to get UI Automator dump."
+                    }
+                }
             }
         }
     }

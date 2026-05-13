@@ -2,22 +2,41 @@ package cz.talich.arp
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.util.concurrency.annotations.RequiresEdt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 
 class DumpUiAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
-        val dump = dumpUiAutomator()
-        if (dump != null) {
-            Messages.showInfoMessage(e.project, dump, "UI Automator Dump")
-        } else {
-            Messages.showErrorDialog(e.project, "Failed to get UI Automator dump.", "Error")
+        val project = e.project ?: return
+        val cs = project.service<ProjectCoroutineScopeHolder>().scope
+        
+        cs.launch {
+            val dump = withContext(Dispatchers.IO) {
+                dumpUiAutomator()
+            }
+            
+            withContext(Dispatchers.Main) {
+                if (dump != null) {
+                    Messages.showInfoMessage(project, dump, "UI Automator Dump")
+                } else {
+                    Messages.showErrorDialog(project, "Failed to get UI Automator dump.", "Error")
+                }
+            }
         }
     }
 }
+
+@com.intellij.openapi.components.Service(com.intellij.openapi.components.Service.Level.PROJECT)
+class ProjectCoroutineScopeHolder(val scope: CoroutineScope)
 
 fun getAdbPath(): String? {
     val localPropertiesFile = File("local.properties")
