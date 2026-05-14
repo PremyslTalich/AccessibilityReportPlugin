@@ -30,6 +30,12 @@ import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreePath
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.Cursor
+import java.awt.event.MouseMotionAdapter
+import java.awt.Component
+import javax.swing.JTree
+import javax.swing.tree.DefaultTreeCellRenderer
+import javax.swing.tree.TreeCellRenderer
 
 class ArpToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
@@ -47,6 +53,9 @@ class ArpToolWindow(private val project: Project) {
     private val dumpButton = JButton("Dump UI Automator")
     private val clearButton = JButton("Clear")
     private val screenshotLabel = ScaledImagePanel()
+
+    private var rootNode: Node? = null
+    private var hoveredNode: Node? = null
 
     init {
         propertiesArea.isEditable = false
@@ -102,6 +111,29 @@ class ArpToolWindow(private val project: Project) {
         mainSplitter.firstComponent = leftPanel
         panel.add(mainSplitter, BorderLayout.CENTER)
 
+        tree.cellRenderer = object : DefaultTreeCellRenderer() {
+            override fun getTreeCellRendererComponent(
+                tree: JTree, value: Any?, selected: Boolean, expanded: Boolean,
+                leaf: Boolean, row: Int, hasFocus: Boolean
+            ): Component {
+                val comp = super.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus)
+                icon = null
+                if (!selected) {
+                    isOpaque = false
+                    background = null
+                    backgroundNonSelectionColor = null
+                }
+                val treeNode = value as? DefaultMutableTreeNode
+                val node = treeNode?.userObject as? Node
+                if (node != null && node === hoveredNode && !selected) {
+                    comp.foreground = Color.RED
+                } else if (!selected) {
+                    comp.foreground = tree.foreground
+                }
+                return comp
+            }
+        }
+
         tree.addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
                 if (tree.getPathForLocation(e.x, e.y) == null) {
@@ -125,7 +157,23 @@ class ArpToolWindow(private val project: Project) {
             }
         }
 
+        screenshotLabel.onNodeHovered = { node ->
+            hoveredNode = node
+            tree.repaint()
+        }
+
+        screenshotLabel.onNodeClicked = { node ->
+            val treeNode = findTreeNode(tree.model.root as? DefaultMutableTreeNode, node)
+            if (treeNode != null) {
+                val path = TreePath(treeNode.path)
+                tree.selectionPath = path
+                tree.scrollPathToVisible(path)
+            }
+        }
+
         clearButton.addActionListener {
+            rootNode = null
+            screenshotLabel.setRootNode(null)
             tree.model = DefaultTreeModel(DefaultMutableTreeNode("No data"))
             propertiesArea.text = ""
             screenshotLabel.setImage(null)
@@ -148,6 +196,8 @@ class ArpToolWindow(private val project: Project) {
             val dumpNode = if (raw != null) UIAutomatorParser.parse(raw) else null
 
             if (dumpNode != null) {
+                rootNode = dumpNode
+                screenshotLabel.setRootNode(dumpNode)
                 val root = createTreeNodes(dumpNode)
                 tree.model = DefaultTreeModel(root)
                 expandTreeToLevel(tree, TreePath(root), 2)
@@ -225,16 +275,100 @@ class ArpToolWindow(private val project: Project) {
         }
     }
 
+    private fun findTreeNode(root: DefaultMutableTreeNode?, target: Node): DefaultMutableTreeNode? {
+        if (root == null) return null
+        if (root.userObject === target) return root
+        for (i in 0 until root.childCount) {
+            val found = findTreeNode(root.getChildAt(i) as DefaultMutableTreeNode, target)
+            if (found != null) return found
+        }
+        return null
+    }
+
     fun getContent() = panel
 }
 
 private class ScaledImagePanel : JPanel(BorderLayout()) {
     private var image: Image? = null
     private var highlightBounds: NodeBounds? = null
+    private var hoverBounds: NodeBounds? = null
+    private var rootNode: Node? = null
+    var onNodeHovered: ((Node?) -> Unit)? = null
+    var onNodeClicked: ((Node) -> Unit)? = null
+
+    init {
+        addMouseMotionListener(object : MouseMotionAdapter() {
+            override fun mouseMoved(e: MouseEvent) {
+                val img = image ?: return
+                val imgWidth = img.getWidth(this@ScaledImagePanel)
+                val imgHeight = img.getHeight(this@ScaledImagePanel)
+                if (imgWidth <= 0 || imgHeight <= 0) return
+
+                val scale = minOf(width.toDouble() / imgWidth, height.toDouble() / imgHeight)
+                val offsetX = (width - (imgWidth * scale).toInt()) / 2
+                val offsetY = (height - (imgHeight * scale).toInt()) / 2
+
+                val imgX = ((e.x - offsetX) / scale).toInt()
+                val imgY = ((e.y - offsetY) / scale).toInt()
+
+                val found = rootNode?.let { findDeepestNode(it, imgX, imgY) }
+                val newBounds = found?.bounds
+                if (newBounds != hoverBounds) {
+                    hoverBounds = newBounds
+                    onNodeHovered?.invoke(found)
+                    cursor = if (found != null) Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) else Cursor.getDefaultCursor()
+                    repaint()
+                }
+            }
+        })
+        addMouseListener(object : MouseAdapter() {
+            override fun mouseExited(e: MouseEvent) {
+                if (hoverBounds != null) {
+                    hoverBounds = null
+                    onNodeHovered?.invoke(null)
+                    cursor = Cursor.getDefaultCursor()
+                    repaint()
+                }
+            }
+            override fun mouseClicked(e: MouseEvent) {
+                val img = image ?: return
+                val imgWidth = img.getWidth(this@ScaledImagePanel)
+                val imgHeight = img.getHeight(this@ScaledImagePanel)
+                if (imgWidth <= 0 || imgHeight <= 0) return
+
+                val scale = minOf(width.toDouble() / imgWidth, height.toDouble() / imgHeight)
+                val offsetX = (width - (imgWidth * scale).toInt()) / 2
+                val offsetY = (height - (imgHeight * scale).toInt()) / 2
+
+                val imgX = ((e.x - offsetX) / scale).toInt()
+                val imgY = ((e.y - offsetY) / scale).toInt()
+
+                val found = rootNode?.let { findDeepestNode(it, imgX, imgY) }
+                if (found != null) {
+                    onNodeClicked?.invoke(found)
+                }
+            }
+        })
+    }
+
+    private fun findDeepestNode(node: Node, x: Int, y: Int): Node? {
+        if (x < node.bounds.left || x > node.bounds.right || y < node.bounds.top || y > node.bounds.bottom) return null
+        for (child in node.children) {
+            val found = findDeepestNode(child, x, y)
+            if (found != null) return found
+        }
+        if (node.bounds.left == 0 && node.bounds.top == 0) return null
+        return node
+    }
+
+    fun setRootNode(node: Node?) {
+        rootNode = node
+    }
 
     fun setImage(img: Image?) {
         image = img
         highlightBounds = null
+        hoverBounds = null
         repaint()
     }
 
@@ -257,16 +391,32 @@ private class ScaledImagePanel : JPanel(BorderLayout()) {
         val y = (height - h) / 2
         g.drawImage(img, x, y, w, h, this)
 
-        val bounds = highlightBounds ?: return
         val g2 = g as Graphics2D
-        val rectX = x + (bounds.left * scale).toInt()
-        val rectY = y + (bounds.top * scale).toInt()
-        val rectW = ((bounds.right - bounds.left) * scale).toInt()
-        val rectH = ((bounds.bottom - bounds.top) * scale).toInt()
-        g2.color = Color(255, 0, 0, 80)
-        g2.fillRect(rectX, rectY, rectW, rectH)
-        g2.color = Color.RED
-        g2.stroke = BasicStroke(2f)
-        g2.drawRect(rectX, rectY, rectW, rectH)
+
+        val hover = hoverBounds
+        if (hover != null) {
+            val rectX = x + (hover.left * scale).toInt()
+            val rectY = y + (hover.top * scale).toInt()
+            val rectW = ((hover.right - hover.left) * scale).toInt()
+            val rectH = ((hover.bottom - hover.top) * scale).toInt()
+            g2.color = Color(255, 0, 0, 80)
+            g2.fillRect(rectX, rectY, rectW, rectH)
+            g2.color = Color.RED
+            g2.stroke = BasicStroke(2f)
+            g2.drawRect(rectX, rectY, rectW, rectH)
+        }
+
+        val bounds = highlightBounds
+        if (bounds != null) {
+            val rectX = x + (bounds.left * scale).toInt()
+            val rectY = y + (bounds.top * scale).toInt()
+            val rectW = ((bounds.right - bounds.left) * scale).toInt()
+            val rectH = ((bounds.bottom - bounds.top) * scale).toInt()
+            g2.color = Color(0, 120, 255, 50)
+            g2.fillRect(rectX, rectY, rectW, rectH)
+            g2.color = Color(0, 120, 255)
+            g2.stroke = BasicStroke(2f)
+            g2.drawRect(rectX, rectY, rectW, rectH)
+        }
     }
 }
