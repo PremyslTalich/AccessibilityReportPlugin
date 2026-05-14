@@ -86,10 +86,16 @@ class ArpToolWindow(private val project: Project) {
             override fun actionPerformed(e: AnActionEvent) {
                 expandAllNodes(tree)
             }
+            override fun update(e: AnActionEvent) {
+                e.presentation.isEnabled = rootNode != null
+            }
         }
         val collapseAllAction = object : AnAction("Collapse All", "Collapse all tree nodes", AllIcons.Actions.Collapseall) {
             override fun actionPerformed(e: AnActionEvent) {
                 collapseAllNodes(tree)
+            }
+            override fun update(e: AnActionEvent) {
+                e.presentation.isEnabled = rootNode != null
             }
         }
         val actionGroup = DefaultActionGroup(expandAllAction, collapseAllAction)
@@ -177,8 +183,11 @@ class ArpToolWindow(private val project: Project) {
             }
         }
 
+        clearButton.isEnabled = false
+
         clearButton.addActionListener {
             rootNode = null
+            clearButton.isEnabled = false
             screenshotLabel.setRootNode(null)
             tree.model = DefaultTreeModel(DefaultMutableTreeNode("No data"))
             propertiesArea.text = ""
@@ -203,6 +212,7 @@ class ArpToolWindow(private val project: Project) {
 
             if (dumpNode != null) {
                 rootNode = dumpNode
+                clearButton.isEnabled = true
                 screenshotLabel.setRootNode(dumpNode)
                 val root = createTreeNodes(dumpNode)
                 tree.model = DefaultTreeModel(root)
