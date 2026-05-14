@@ -163,11 +163,17 @@ class ArpToolWindow(private val project: Project) {
         }
 
         screenshotLabel.onNodeClicked = { node ->
-            val treeNode = findTreeNode(tree.model.root as? DefaultMutableTreeNode, node)
-            if (treeNode != null) {
-                val path = TreePath(treeNode.path)
-                tree.selectionPath = path
-                tree.scrollPathToVisible(path)
+            if (node != null) {
+                val treeNode = findTreeNode(tree.model.root as? DefaultMutableTreeNode, node)
+                if (treeNode != null) {
+                    val path = TreePath(treeNode.path)
+                    tree.selectionPath = path
+                    tree.scrollPathToVisible(path)
+                }
+            } else {
+                tree.clearSelection()
+                propertiesArea.text = ""
+                screenshotLabel.setHighlightBounds(null)
             }
         }
 
@@ -294,7 +300,7 @@ private class ScaledImagePanel : JPanel(BorderLayout()) {
     private var hoverBounds: NodeBounds? = null
     private var rootNode: Node? = null
     var onNodeHovered: ((Node?) -> Unit)? = null
-    var onNodeClicked: ((Node) -> Unit)? = null
+    var onNodeClicked: ((Node?) -> Unit)? = null
 
     init {
         addMouseMotionListener(object : MouseMotionAdapter() {
@@ -344,9 +350,7 @@ private class ScaledImagePanel : JPanel(BorderLayout()) {
                 val imgY = ((e.y - offsetY) / scale).toInt()
 
                 val found = rootNode?.let { findDeepestNode(it, imgX, imgY) }
-                if (found != null) {
-                    onNodeClicked?.invoke(found)
-                }
+                onNodeClicked?.invoke(found)
             }
         })
     }
