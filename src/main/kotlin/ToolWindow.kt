@@ -78,6 +78,7 @@ class ArpToolWindow(private val project: Project) {
             if (dumpNode != null) {
                 val root = createTreeNodes(dumpNode)
                 tree.model = DefaultTreeModel(root)
+                propertiesArea.text = raw
             } else {
                 tree.model = DefaultTreeModel(DefaultMutableTreeNode("Failed to get UI Automator dump."))
                 propertiesArea.text = ""

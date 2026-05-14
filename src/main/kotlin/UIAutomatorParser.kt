@@ -19,7 +19,9 @@ object UIAutomatorParser {
     }
 
     private fun parseElement(element: Element): Node {
-        val id = element.getAttributeValue("resource-id") ?: ""
+        val resourceId = element.getAttributeValue("resource-id") ?: ""
+        val contentDesc = element.getAttributeValue("content-desc") ?: ""
+        val id = resourceId.ifEmpty { contentDesc }
         val className = element.getAttributeValue("class") ?: ""
         val boundsStr = element.getAttributeValue("bounds") ?: "[0,0][0,0]"
         val text = element.getAttributeValue("text")
