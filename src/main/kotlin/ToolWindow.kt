@@ -1,5 +1,10 @@
 package cz.talich.arp
 
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -22,6 +27,7 @@ import javax.swing.JPanel
 import javax.swing.JTextArea
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
+import javax.swing.tree.TreePath
 
 class ArpToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
@@ -42,10 +48,18 @@ class ArpToolWindow(private val project: Project) {
 
     init {
         propertiesArea.isEditable = false
+        propertiesArea.componentPopupMenu = javax.swing.JPopupMenu().apply {
+            add(javax.swing.JMenuItem("Copy").apply {
+                addActionListener { propertiesArea.copy() }
+            })
+            add(javax.swing.JMenuItem("Select All").apply {
+                addActionListener { propertiesArea.selectAll() }
+            })
+        }
         val treeScrollPane = JBScrollPane(tree)
         val propertiesScrollPane = JBScrollPane(propertiesArea)
 
-        val leftSplitter = OnePixelSplitter(true, 0.5f)
+        val leftSplitter = OnePixelSplitter(true, 0.75f)
         leftSplitter.firstComponent = treeScrollPane
         leftSplitter.secondComponent = propertiesScrollPane
 
@@ -57,11 +71,33 @@ class ArpToolWindow(private val project: Project) {
 
         refreshDeviceList()
 
-        val buttonPanel = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT))
-        buttonPanel.add(deviceComboBox)
-        buttonPanel.add(dumpButton)
-        buttonPanel.add(clearButton)
-        panel.add(buttonPanel, BorderLayout.NORTH)
+        val expandAllAction = object : AnAction("Expand All", "Expand all tree nodes", AllIcons.Actions.Expandall) {
+            override fun actionPerformed(e: AnActionEvent) {
+                expandAllNodes(tree)
+            }
+        }
+        val collapseAllAction = object : AnAction("Collapse All", "Collapse all tree nodes", AllIcons.Actions.Collapseall) {
+            override fun actionPerformed(e: AnActionEvent) {
+                collapseAllNodes(tree)
+            }
+        }
+        val actionGroup = DefaultActionGroup(expandAllAction, collapseAllAction)
+        val toolbar = ActionManager.getInstance().createActionToolbar("ArpTreeToolbar", actionGroup, true)
+        toolbar.targetComponent = tree
+
+        val buttonPanel = JPanel(BorderLayout())
+        val leftButtons = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 5))
+        leftButtons.add(deviceComboBox)
+        leftButtons.add(dumpButton)
+        leftButtons.add(clearButton)
+        buttonPanel.add(leftButtons, BorderLayout.WEST)
+        buttonPanel.add(toolbar.component, BorderLayout.EAST)
+
+        val leftPanel = JBPanel<JBPanel<*>>(BorderLayout())
+        leftPanel.add(buttonPanel, BorderLayout.NORTH)
+        leftPanel.add(leftSplitter, BorderLayout.CENTER)
+
+        mainSplitter.firstComponent = leftPanel
         panel.add(mainSplitter, BorderLayout.CENTER)
 
         tree.addTreeSelectionListener {
@@ -101,6 +137,7 @@ class ArpToolWindow(private val project: Project) {
             if (dumpNode != null) {
                 val root = createTreeNodes(dumpNode)
                 tree.model = DefaultTreeModel(root)
+                expandTreeToLevel(tree, TreePath(root), 2)
                 propertiesArea.text = raw
             } else {
                 tree.model = DefaultTreeModel(DefaultMutableTreeNode("Failed to get UI Automator dump."))
@@ -113,6 +150,15 @@ class ArpToolWindow(private val project: Project) {
             } else {
                 screenshotLabel.setImage(null)
             }
+        }
+    }
+
+    private fun expandTreeToLevel(tree: Tree, path: TreePath, levels: Int) {
+        if (levels <= 0) return
+        tree.expandPath(path)
+        val node = path.lastPathComponent as DefaultMutableTreeNode
+        for (i in 0 until node.childCount) {
+            expandTreeToLevel(tree, path.pathByAddingChild(node.getChildAt(i)), levels - 1)
         }
     }
 
@@ -142,6 +188,28 @@ class ArpToolWindow(private val project: Project) {
             deviceComboBox.selectedItem = previousSelection
         }
         dumpButton.isEnabled = devices.isNotEmpty()
+    }
+
+    private fun expandAllNodes(tree: Tree) {
+        val root = tree.model.root as? DefaultMutableTreeNode ?: return
+        val e = root.depthFirstEnumeration()
+        while (e.hasMoreElements()) {
+            val node = e.nextElement() as DefaultMutableTreeNode
+            if (node.childCount > 0) {
+                tree.expandPath(TreePath(node.path))
+            }
+        }
+    }
+
+    private fun collapseAllNodes(tree: Tree) {
+        val root = tree.model.root as? DefaultMutableTreeNode ?: return
+        val e = root.depthFirstEnumeration()
+        while (e.hasMoreElements()) {
+            val node = e.nextElement() as DefaultMutableTreeNode
+            if (node.childCount > 0 && node != root) {
+                tree.collapsePath(TreePath(node.path))
+            }
+        }
     }
 
     fun getContent() = panel
