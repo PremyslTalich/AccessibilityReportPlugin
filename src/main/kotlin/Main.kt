@@ -47,25 +47,37 @@ fun runCommand(vararg command: String): String? {
     }
 }
 
-fun dumpUiAutomator(): String? {
-    val adb = getAdbPath() ?: return null
+fun getConnectedDevices(): List<String> {
+    val adb = getAdbPath() ?: return emptyList()
+    val output = runCommand(adb, "devices") ?: return emptyList()
+    return output.lines()
+        .drop(1)
+        .map { it.trim() }
+        .filter { it.endsWith("device") }
+        .map { it.split("\t").first() }
+}
 
-    val dumpResult = runCommand(adb, "shell", "uiautomator", "dump", "/sdcard/view.xml")
+fun dumpUiAutomator(serial: String? = null): String? {
+    val adb = getAdbPath() ?: return null
+    val prefix = if (serial != null) arrayOf(adb, "-s", serial) else arrayOf(adb)
+
+    val dumpResult = runCommand(*prefix, "shell", "uiautomator", "dump", "/sdcard/view.xml")
     if (dumpResult == null || (!dumpResult.contains("UI hierarchy dumped to") && !dumpResult.contains("UI hierchary dumped to"))) {
         if (dumpResult?.contains("ERROR") == true) return null
     }
 
-    val content = runCommand(adb, "shell", "cat", "/sdcard/view.xml")
+    val content = runCommand(*prefix, "shell", "cat", "/sdcard/view.xml")
 
-    runCommand(adb, "shell", "rm", "/sdcard/view.xml")
+    runCommand(*prefix, "shell", "rm", "/sdcard/view.xml")
 
     return content
 }
 
-fun takeScreenshot(): ByteArray? {
+fun takeScreenshot(serial: String? = null): ByteArray? {
     val adb = getAdbPath() ?: return null
+    val cmd = if (serial != null) listOf(adb, "-s", serial, "exec-out", "screencap", "-p") else listOf(adb, "exec-out", "screencap", "-p")
     return try {
-        val process = ProcessBuilder(adb, "exec-out", "screencap", "-p")
+        val process = ProcessBuilder(cmd)
             .redirectErrorStream(false)
             .start()
         val bytes = process.inputStream.readBytes()

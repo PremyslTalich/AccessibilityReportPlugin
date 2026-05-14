@@ -15,7 +15,9 @@ import java.awt.Graphics2D
 import java.awt.Image
 import java.awt.BasicStroke
 import javax.swing.ImageIcon
+import javax.swing.DefaultComboBoxModel
 import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JPanel
 import javax.swing.JTextArea
 import javax.swing.tree.DefaultMutableTreeNode
@@ -33,6 +35,7 @@ class ArpToolWindow(private val project: Project) {
     private val panel = JBPanel<JBPanel<*>>(BorderLayout())
     private val tree = Tree(DefaultMutableTreeNode("No data"))
     private val propertiesArea = JTextArea()
+    private val deviceComboBox = JComboBox<String>()
     private val dumpButton = JButton("Dump UI Automator")
     private val clearButton = JButton("Clear")
     private val screenshotLabel = ScaledImagePanel()
@@ -55,7 +58,10 @@ class ArpToolWindow(private val project: Project) {
         mainSplitter.firstComponent = leftSplitter
         mainSplitter.secondComponent = screenshotScrollPane
 
+        refreshDeviceList()
+
         val buttonPanel = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT))
+        buttonPanel.add(deviceComboBox)
         buttonPanel.add(dumpButton)
         buttonPanel.add(clearButton)
         panel.add(buttonPanel, BorderLayout.NORTH)
@@ -79,9 +85,19 @@ class ArpToolWindow(private val project: Project) {
             screenshotLabel.setImage(null)
         }
 
+        deviceComboBox.addPopupMenuListener(object : javax.swing.event.PopupMenuListener {
+            override fun popupMenuWillBecomeVisible(e: javax.swing.event.PopupMenuEvent?) {
+                refreshDeviceList()
+            }
+            override fun popupMenuWillBecomeInvisible(e: javax.swing.event.PopupMenuEvent?) {}
+            override fun popupMenuCanceled(e: javax.swing.event.PopupMenuEvent?) {}
+        })
+
         dumpButton.addActionListener {
-            val screenshotBytes = takeScreenshot()
-            val raw = dumpUiAutomator()
+            refreshDeviceList()
+            val selectedDevice = deviceComboBox.selectedItem as? String
+            val screenshotBytes = takeScreenshot(selectedDevice)
+            val raw = dumpUiAutomator(selectedDevice)
 
             val dumpNode = if (raw != null) UIAutomatorParser.parse(raw) else null
 
@@ -119,6 +135,16 @@ class ArpToolWindow(private val project: Project) {
             appendLine("Description: ${node.description ?: "null"}")
             appendLine("Bounds: [${node.bounds.left}, ${node.bounds.top}][${node.bounds.right}, ${node.bounds.bottom}]")
         }
+    }
+
+    private fun refreshDeviceList() {
+        val devices = getConnectedDevices()
+        val previousSelection = deviceComboBox.selectedItem as? String
+        deviceComboBox.model = DefaultComboBoxModel(devices.toTypedArray())
+        if (previousSelection != null && devices.contains(previousSelection)) {
+            deviceComboBox.selectedItem = previousSelection
+        }
+        dumpButton.isEnabled = devices.isNotEmpty()
     }
 
     fun getContent() = panel
