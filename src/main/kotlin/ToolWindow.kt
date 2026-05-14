@@ -45,15 +45,12 @@ class ArpToolWindow(private val project: Project) {
         val treeScrollPane = JBScrollPane(tree)
         val propertiesScrollPane = JBScrollPane(propertiesArea)
 
-        // Left side: tree (top) and properties (bottom) split vertically
         val leftSplitter = OnePixelSplitter(true, 0.5f)
         leftSplitter.firstComponent = treeScrollPane
         leftSplitter.secondComponent = propertiesScrollPane
 
-        // Right side: screenshot
         val screenshotScrollPane = JBScrollPane(screenshotLabel)
 
-        // Main horizontal splitter: left panel | screenshot
         val mainSplitter = OnePixelSplitter(false, 0.5f)
         mainSplitter.firstComponent = leftSplitter
         mainSplitter.secondComponent = screenshotScrollPane
