@@ -12,6 +12,7 @@ import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
+import com.intellij.ui.table.JBTable
 import com.intellij.ui.treeStructure.Tree
 import java.awt.BorderLayout
 import java.awt.Color
@@ -24,7 +25,7 @@ import javax.swing.DefaultComboBoxModel
 import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JPanel
-import javax.swing.JTextArea
+import javax.swing.table.DefaultTableModel
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreePath
@@ -50,7 +51,10 @@ class ArpToolWindowFactory : ToolWindowFactory {
 class ArpToolWindow(private val project: Project) {
     private val panel = JBPanel<JBPanel<*>>(BorderLayout())
     private val tree = Tree(DefaultMutableTreeNode("No data"))
-    private val propertiesArea = JTextArea()
+    private val propertiesTableModel = object : DefaultTableModel(arrayOf("Property", "Value"), 0) {
+        override fun isCellEditable(row: Int, column: Int) = false
+    }
+    private val propertiesTable = JBTable(propertiesTableModel)
     private val deviceComboBox = JComboBox<String>()
     private val dumpButton = JButton("Dump UI Automator")
     private val screenshotLabel = ScaledImagePanel()
@@ -60,17 +64,57 @@ class ArpToolWindow(private val project: Project) {
     private var rawXml: String? = null
 
     init {
-        propertiesArea.isEditable = false
-        propertiesArea.componentPopupMenu = javax.swing.JPopupMenu().apply {
-            add(javax.swing.JMenuItem("Copy").apply {
-                addActionListener { propertiesArea.copy() }
+        propertiesTable.tableHeader.reorderingAllowed = false
+        propertiesTable.addMouseListener(object : MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent) {
+                if (e.clickCount == 2) {
+                    val row = propertiesTable.rowAtPoint(e.point)
+                    if (row >= 0) {
+                        val value = propertiesTableModel.getValueAt(row, 1)?.toString() ?: ""
+                        val selection = java.awt.datatransfer.StringSelection(value)
+                        java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
+                    }
+                }
+            }
+        })
+        val propertiesPopupMenu = javax.swing.JPopupMenu().apply {
+            add(javax.swing.JMenuItem("Copy Value").apply {
+                addActionListener {
+                    val row = propertiesTable.selectedRow
+                    if (row >= 0) {
+                        val value = propertiesTableModel.getValueAt(row, 1)?.toString() ?: ""
+                        val selection = java.awt.datatransfer.StringSelection(value)
+                        java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
+                    }
+                }
             })
-            add(javax.swing.JMenuItem("Select All").apply {
-                addActionListener { propertiesArea.selectAll() }
+            add(javax.swing.JMenuItem("Copy Key: Value").apply {
+                addActionListener {
+                    val row = propertiesTable.selectedRow
+                    if (row >= 0) {
+                        val key = propertiesTableModel.getValueAt(row, 0)?.toString() ?: ""
+                        val value = propertiesTableModel.getValueAt(row, 1)?.toString() ?: ""
+                        val selection = java.awt.datatransfer.StringSelection("$key: $value")
+                        java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
+                    }
+                }
             })
         }
+        propertiesTable.addMouseListener(object : MouseAdapter() {
+            override fun mousePressed(e: MouseEvent) { showPopupIfOnRow(e) }
+            override fun mouseReleased(e: MouseEvent) { showPopupIfOnRow(e) }
+            private fun showPopupIfOnRow(e: MouseEvent) {
+                if (e.isPopupTrigger) {
+                    val row = propertiesTable.rowAtPoint(e.point)
+                    if (row >= 0) {
+                        propertiesTable.setRowSelectionInterval(row, row)
+                        propertiesPopupMenu.show(propertiesTable, e.x, e.y)
+                    }
+                }
+            }
+        })
         val treeScrollPane = JBScrollPane(tree)
-        val propertiesScrollPane = JBScrollPane(propertiesArea)
+        val propertiesScrollPane = JBScrollPane(propertiesTable)
 
         val leftSplitter = OnePixelSplitter(true, 0.75f)
         leftSplitter.firstComponent = treeScrollPane
@@ -126,7 +170,7 @@ class ArpToolWindow(private val project: Project) {
                 rawXml = null
                 screenshotLabel.setRootNode(null)
                 tree.model = DefaultTreeModel(DefaultMutableTreeNode("No data"))
-                propertiesArea.text = ""
+                clearPropertiesTable()
                 screenshotLabel.setImage(null)
             }
             override fun update(e: AnActionEvent) {
@@ -204,10 +248,10 @@ class ArpToolWindow(private val project: Project) {
             val selectedNode = tree.lastSelectedPathComponent as? DefaultMutableTreeNode
             val node = selectedNode?.userObject as? Node
             if (node != null) {
-                propertiesArea.text = formatNodeProperties(node)
+                updatePropertiesTable(node)
                 screenshotLabel.setHighlightBounds(node.bounds)
             } else {
-                propertiesArea.text = ""
+                clearPropertiesTable()
                 screenshotLabel.setHighlightBounds(null)
             }
         }
@@ -227,7 +271,7 @@ class ArpToolWindow(private val project: Project) {
                 }
             } else {
                 tree.clearSelection()
-                propertiesArea.text = ""
+                clearPropertiesTable()
                 screenshotLabel.setHighlightBounds(null)
             }
         }
@@ -256,10 +300,10 @@ class ArpToolWindow(private val project: Project) {
                 val root = createTreeNodes(dumpNode)
                 tree.model = DefaultTreeModel(root)
                 expandTreeToLevel(tree, TreePath(root), 2)
-                propertiesArea.text = ""
+                clearPropertiesTable()
             } else {
                 tree.model = DefaultTreeModel(DefaultMutableTreeNode("Failed to get UI Automator dump."))
-                propertiesArea.text = ""
+                clearPropertiesTable()
             }
 
             if (screenshotBytes != null) {
@@ -288,14 +332,17 @@ class ArpToolWindow(private val project: Project) {
         return treeNode
     }
 
-    private fun formatNodeProperties(node: Node): String {
-        return buildString {
-            appendLine("ID: ${node.id}")
-            appendLine("Class: ${node.className}")
-            appendLine("Text: ${node.text ?: "null"}")
-            appendLine("Description: ${node.description ?: "null"}")
-            appendLine("Bounds: [${node.bounds.left}, ${node.bounds.top}][${node.bounds.right}, ${node.bounds.bottom}]")
-        }
+    private fun updatePropertiesTable(node: Node) {
+        propertiesTableModel.rowCount = 0
+        propertiesTableModel.addRow(arrayOf("ID", node.id))
+        propertiesTableModel.addRow(arrayOf("Class", node.className))
+        propertiesTableModel.addRow(arrayOf("Text", node.text ?: "null"))
+        propertiesTableModel.addRow(arrayOf("Description", node.description ?: "null"))
+        propertiesTableModel.addRow(arrayOf("Bounds", "[${node.bounds.left}, ${node.bounds.top}][${node.bounds.right}, ${node.bounds.bottom}]"))
+    }
+
+    private fun clearPropertiesTable() {
+        propertiesTableModel.rowCount = 0
     }
 
     private fun refreshDeviceList() {
