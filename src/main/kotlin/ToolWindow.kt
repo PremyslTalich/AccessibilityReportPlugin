@@ -34,6 +34,7 @@ class ArpToolWindow(private val project: Project) {
     private val tree = Tree(DefaultMutableTreeNode("No data"))
     private val propertiesArea = JTextArea()
     private val dumpButton = JButton("Dump UI Automator")
+    private val clearButton = JButton("Clear")
     private val screenshotLabel = ScaledImagePanel()
 
     init {
@@ -54,7 +55,10 @@ class ArpToolWindow(private val project: Project) {
         mainSplitter.firstComponent = leftSplitter
         mainSplitter.secondComponent = screenshotScrollPane
 
-        panel.add(dumpButton, BorderLayout.NORTH)
+        val buttonPanel = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT))
+        buttonPanel.add(dumpButton)
+        buttonPanel.add(clearButton)
+        panel.add(buttonPanel, BorderLayout.NORTH)
         panel.add(mainSplitter, BorderLayout.CENTER)
 
         tree.addTreeSelectionListener {
@@ -67,6 +71,12 @@ class ArpToolWindow(private val project: Project) {
                 propertiesArea.text = ""
                 screenshotLabel.setHighlightBounds(null)
             }
+        }
+
+        clearButton.addActionListener {
+            tree.model = DefaultTreeModel(DefaultMutableTreeNode("No data"))
+            propertiesArea.text = ""
+            screenshotLabel.setImage(null)
         }
 
         dumpButton.addActionListener {
