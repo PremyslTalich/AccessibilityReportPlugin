@@ -7,7 +7,9 @@ data class Node(
     val text: String?,
     val description: String?,
     val children: List<Node> = emptyList()
-)
+) {
+    override fun toString() = id
+}
 
 data class NodeBounds(
     val left: Int,

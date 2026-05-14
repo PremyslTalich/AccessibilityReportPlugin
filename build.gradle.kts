@@ -19,7 +19,6 @@ dependencies {
         intellijIdeaCommunity("2024.3")
         instrumentationTools()
     }
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
     testImplementation(kotlin("test"))
 }
 
