@@ -61,3 +61,17 @@ fun dumpUiAutomator(): String? {
 
     return content
 }
+
+fun takeScreenshot(): ByteArray? {
+    val adb = getAdbPath() ?: return null
+    return try {
+        val process = ProcessBuilder(adb, "exec-out", "screencap", "-p")
+            .redirectErrorStream(false)
+            .start()
+        val bytes = process.inputStream.readBytes()
+        process.waitFor(10, TimeUnit.SECONDS)
+        if (process.exitValue() == 0 && bytes.isNotEmpty()) bytes else null
+    } catch (e: Exception) {
+        null
+    }
+}

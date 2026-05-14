@@ -9,7 +9,14 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.treeStructure.Tree
 import java.awt.BorderLayout
+import java.awt.Color
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.Image
+import java.awt.BasicStroke
+import javax.swing.ImageIcon
 import javax.swing.JButton
+import javax.swing.JPanel
 import javax.swing.JTextArea
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
@@ -27,31 +34,45 @@ class ArpToolWindow(private val project: Project) {
     private val tree = Tree(DefaultMutableTreeNode("No data"))
     private val propertiesArea = JTextArea()
     private val dumpButton = JButton("Dump UI Automator")
+    private val screenshotLabel = ScaledImagePanel()
 
     init {
         propertiesArea.isEditable = false
         val treeScrollPane = JBScrollPane(tree)
         val propertiesScrollPane = JBScrollPane(propertiesArea)
 
-        val splitter = OnePixelSplitter(true, 0.5f)
-        splitter.firstComponent = treeScrollPane
-        splitter.secondComponent = propertiesScrollPane
+        // Left side: tree (top) and properties (bottom) split vertically
+        val leftSplitter = OnePixelSplitter(true, 0.5f)
+        leftSplitter.firstComponent = treeScrollPane
+        leftSplitter.secondComponent = propertiesScrollPane
+
+        // Right side: screenshot
+        val screenshotScrollPane = JBScrollPane(screenshotLabel)
+
+        // Main horizontal splitter: left panel | screenshot
+        val mainSplitter = OnePixelSplitter(false, 0.5f)
+        mainSplitter.firstComponent = leftSplitter
+        mainSplitter.secondComponent = screenshotScrollPane
 
         panel.add(dumpButton, BorderLayout.NORTH)
-        panel.add(splitter, BorderLayout.CENTER)
+        panel.add(mainSplitter, BorderLayout.CENTER)
 
         tree.addTreeSelectionListener {
             val selectedNode = tree.lastSelectedPathComponent as? DefaultMutableTreeNode
             val node = selectedNode?.userObject as? Node
             if (node != null) {
                 propertiesArea.text = formatNodeProperties(node)
+                screenshotLabel.setHighlightBounds(node.bounds)
             } else {
                 propertiesArea.text = ""
+                screenshotLabel.setHighlightBounds(null)
             }
         }
 
         dumpButton.addActionListener {
+            val screenshotBytes = takeScreenshot()
             val raw = dumpUiAutomator()
+
             val dumpNode = if (raw != null) UIAutomatorParser.parse(raw) else null
 
             if (dumpNode != null) {
@@ -60,6 +81,13 @@ class ArpToolWindow(private val project: Project) {
             } else {
                 tree.model = DefaultTreeModel(DefaultMutableTreeNode("Failed to get UI Automator dump."))
                 propertiesArea.text = ""
+            }
+
+            if (screenshotBytes != null) {
+                val icon = ImageIcon(screenshotBytes)
+                screenshotLabel.setImage(icon.image)
+            } else {
+                screenshotLabel.setImage(null)
             }
         }
     }
@@ -83,4 +111,47 @@ class ArpToolWindow(private val project: Project) {
     }
 
     fun getContent() = panel
+}
+
+private class ScaledImagePanel : JPanel(BorderLayout()) {
+    private var image: Image? = null
+    private var highlightBounds: NodeBounds? = null
+
+    fun setImage(img: Image?) {
+        image = img
+        highlightBounds = null
+        repaint()
+    }
+
+    fun setHighlightBounds(bounds: NodeBounds?) {
+        highlightBounds = bounds
+        repaint()
+    }
+
+    override fun paintComponent(g: Graphics) {
+        super.paintComponent(g)
+        val img = image ?: return
+        val imgWidth = img.getWidth(this)
+        val imgHeight = img.getHeight(this)
+        if (imgWidth <= 0 || imgHeight <= 0) return
+
+        val scale = minOf(width.toDouble() / imgWidth, height.toDouble() / imgHeight)
+        val w = (imgWidth * scale).toInt()
+        val h = (imgHeight * scale).toInt()
+        val x = (width - w) / 2
+        val y = (height - h) / 2
+        g.drawImage(img, x, y, w, h, this)
+
+        val bounds = highlightBounds ?: return
+        val g2 = g as Graphics2D
+        val rectX = x + (bounds.left * scale).toInt()
+        val rectY = y + (bounds.top * scale).toInt()
+        val rectW = ((bounds.right - bounds.left) * scale).toInt()
+        val rectH = ((bounds.bottom - bounds.top) * scale).toInt()
+        g2.color = Color(255, 0, 0, 80)
+        g2.fillRect(rectX, rectY, rectW, rectH)
+        g2.color = Color.RED
+        g2.stroke = BasicStroke(2f)
+        g2.drawRect(rectX, rectY, rectW, rectH)
+    }
 }
