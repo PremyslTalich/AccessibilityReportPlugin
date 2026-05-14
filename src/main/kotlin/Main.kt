@@ -1,24 +1,9 @@
 package cz.talich.arp
 
-import com.intellij.openapi.actionSystem.AnAction
-import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import java.io.File
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 
-class DumpUiAction : AnAction() {
-    override fun actionPerformed(e: AnActionEvent) {
-        val project = e.project ?: return
-        val dump = dumpUiAutomator()
-        if (dump != null) {
-            Messages.showInfoMessage(project, dump, "UI Automator Dump")
-        } else {
-            Messages.showErrorDialog(project, "Failed to get UI Automator dump.", "Error")
-        }
-    }
-}
 
 fun getAdbPath(): String? {
     val localPropertiesFile = File("local.properties")

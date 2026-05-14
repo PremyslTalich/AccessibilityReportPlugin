@@ -13,15 +13,4 @@
                     factoryClass="cz.talich.arp.ArpToolWindowFactory"
                     icon="AllIcons.General.Modified"/>
     </extensions>
-
-    <actions>
-        <group id="cz.talich.arp.ToolsMenu" text="Accessibility Report" popup="true">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-            <action id="cz.talich.arp.DumpUiAction"
-                    class="cz.talich.arp.DumpUiAction"
-                    text="Dump UI Automator"
-                    description="Dumps UI Automator from connected device">
-            </action>
-        </group>
-    </actions>
 </idea-plugin>
