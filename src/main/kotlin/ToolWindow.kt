@@ -28,6 +28,8 @@ import javax.swing.JTextArea
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreePath
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 
 class ArpToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
@@ -99,6 +101,17 @@ class ArpToolWindow(private val project: Project) {
 
         mainSplitter.firstComponent = leftPanel
         panel.add(mainSplitter, BorderLayout.CENTER)
+
+        tree.addMouseListener(object : MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent) {
+                if (tree.getPathForLocation(e.x, e.y) == null) {
+                    val closestRow = tree.getClosestRowForLocation(e.x, e.y)
+                    if (closestRow < 0 || e.y > tree.getRowBounds(closestRow).y + tree.getRowBounds(closestRow).height) {
+                        tree.clearSelection()
+                    }
+                }
+            }
+        })
 
         tree.addTreeSelectionListener {
             val selectedNode = tree.lastSelectedPathComponent as? DefaultMutableTreeNode
