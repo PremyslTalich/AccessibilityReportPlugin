@@ -32,6 +32,8 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.Cursor
 import java.awt.event.MouseMotionAdapter
+import com.intellij.openapi.fileChooser.FileChooserFactory
+import com.intellij.openapi.fileChooser.FileSaverDescriptor
 import java.awt.Component
 import javax.swing.JTree
 import javax.swing.tree.DefaultTreeCellRenderer
@@ -51,11 +53,11 @@ class ArpToolWindow(private val project: Project) {
     private val propertiesArea = JTextArea()
     private val deviceComboBox = JComboBox<String>()
     private val dumpButton = JButton("Dump UI Automator")
-    private val clearButton = JButton("Clear")
     private val screenshotLabel = ScaledImagePanel()
 
     private var rootNode: Node? = null
     private var hoveredNode: Node? = null
+    private var rawXml: String? = null
 
     init {
         propertiesArea.isEditable = false
@@ -98,15 +100,62 @@ class ArpToolWindow(private val project: Project) {
                 e.presentation.isEnabled = rootNode != null
             }
         }
-        val actionGroup = DefaultActionGroup(expandAllAction, collapseAllAction)
-        val toolbar = ActionManager.getInstance().createActionToolbar("ArpTreeToolbar", actionGroup, true)
+        val exportAction = object : AnAction("Export XML", "Export raw XML dump", AllIcons.ToolbarDecorator.Export) {
+            override fun actionPerformed(e: AnActionEvent) {
+                val xml = rawXml ?: return
+                val descriptor = FileSaverDescriptor("Export UI Dump", "Save raw XML dump", "xml")
+                val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
+                val wrapper = dialog.save("ui_dump.xml")
+                if (wrapper != null) {
+                    val file = wrapper.file
+                    val target = if (!file.name.endsWith(".xml", ignoreCase = true)) {
+                        java.io.File(file.absolutePath + ".xml")
+                    } else {
+                        file
+                    }
+                    target.writeText(xml)
+                }
+            }
+            override fun update(e: AnActionEvent) {
+                e.presentation.isEnabled = rawXml != null
+            }
+        }
+        val clearAction = object : AnAction("Clear", "Clear all data", AllIcons.Actions.GC) {
+            override fun actionPerformed(e: AnActionEvent) {
+                rootNode = null
+                rawXml = null
+                screenshotLabel.setRootNode(null)
+                tree.model = DefaultTreeModel(DefaultMutableTreeNode("No data"))
+                propertiesArea.text = ""
+                screenshotLabel.setImage(null)
+            }
+            override fun update(e: AnActionEvent) {
+                e.presentation.isEnabled = rootNode != null
+            }
+        }
+        val treeActionGroup = DefaultActionGroup().apply {
+            add(exportAction)
+            add(clearAction)
+        }
+        val moreAction = object : AnAction("More", "More actions", AllIcons.Actions.More) {
+            override fun actionPerformed(e: AnActionEvent) {
+                val popup = ActionManager.getInstance().createActionPopupMenu("ArpTreePopup", treeActionGroup)
+                val component = e.inputEvent?.component ?: return
+                popup.component.show(component, 0, component.height)
+            }
+        }
+        val toolbarGroup = DefaultActionGroup().apply {
+            add(expandAllAction)
+            add(collapseAllAction)
+            add(moreAction)
+        }
+        val toolbar = ActionManager.getInstance().createActionToolbar("ArpTreeToolbar", toolbarGroup, true)
         toolbar.targetComponent = tree
 
         val buttonPanel = JPanel(BorderLayout())
         val leftButtons = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 5))
         leftButtons.add(deviceComboBox)
         leftButtons.add(dumpButton)
-        leftButtons.add(clearButton)
         buttonPanel.add(leftButtons, BorderLayout.WEST)
         buttonPanel.add(toolbar.component, BorderLayout.EAST)
 
@@ -183,16 +232,6 @@ class ArpToolWindow(private val project: Project) {
             }
         }
 
-        clearButton.isEnabled = false
-
-        clearButton.addActionListener {
-            rootNode = null
-            clearButton.isEnabled = false
-            screenshotLabel.setRootNode(null)
-            tree.model = DefaultTreeModel(DefaultMutableTreeNode("No data"))
-            propertiesArea.text = ""
-            screenshotLabel.setImage(null)
-        }
 
         deviceComboBox.addPopupMenuListener(object : javax.swing.event.PopupMenuListener {
             override fun popupMenuWillBecomeVisible(e: javax.swing.event.PopupMenuEvent?) {
@@ -212,12 +251,12 @@ class ArpToolWindow(private val project: Project) {
 
             if (dumpNode != null) {
                 rootNode = dumpNode
-                clearButton.isEnabled = true
+                rawXml = raw
                 screenshotLabel.setRootNode(dumpNode)
                 val root = createTreeNodes(dumpNode)
                 tree.model = DefaultTreeModel(root)
                 expandTreeToLevel(tree, TreePath(root), 2)
-                propertiesArea.text = raw
+                propertiesArea.text = ""
             } else {
                 tree.model = DefaultTreeModel(DefaultMutableTreeNode("Failed to get UI Automator dump."))
                 propertiesArea.text = ""
