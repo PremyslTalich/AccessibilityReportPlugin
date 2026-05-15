@@ -38,7 +38,6 @@ import com.intellij.openapi.fileChooser.FileSaverDescriptor
 import java.awt.Component
 import javax.swing.JTree
 import javax.swing.tree.DefaultTreeCellRenderer
-import javax.swing.tree.TreeCellRenderer
 
 class ArpToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
@@ -56,12 +55,14 @@ class ArpToolWindow(private val project: Project) {
     }
     private val propertiesTable = JBTable(propertiesTableModel)
     private val deviceComboBox = JComboBox<String>()
-    private val dumpButton = JButton("Dump UI Automator")
+    private val dumpButton = JButton("Generate report")
     private val screenshotLabel = ScaledImagePanel()
 
     private var rootNode: Node? = null
     private var hoveredNode: Node? = null
     private var rawXml: String? = null
+
+    private val adbController = AdbController(project)
 
     init {
         propertiesTable.tableHeader.reorderingAllowed = false
@@ -144,7 +145,7 @@ class ArpToolWindow(private val project: Project) {
                 e.presentation.isEnabled = rootNode != null
             }
         }
-        val exportAction = object : AnAction("Export XML", "Export raw XML dump", AllIcons.ToolbarDecorator.Export) {
+        val exportAction = object : AnAction("Export Source XML", "Export raw XML dump", AllIcons.ToolbarDecorator.Export) {
             override fun actionPerformed(e: AnActionEvent) {
                 val xml = rawXml ?: return
                 val descriptor = FileSaverDescriptor("Export UI Dump", "Save raw XML dump", "xml")
@@ -164,7 +165,7 @@ class ArpToolWindow(private val project: Project) {
                 e.presentation.isEnabled = rawXml != null
             }
         }
-        val clearAction = object : AnAction("Clear", "Clear all data", AllIcons.Actions.GC) {
+        val clearAction = object : AnAction("Clear Data", "Clear all data", AllIcons.Actions.GC) {
             override fun actionPerformed(e: AnActionEvent) {
                 rootNode = null
                 rawXml = null
@@ -288,8 +289,8 @@ class ArpToolWindow(private val project: Project) {
         dumpButton.addActionListener {
             refreshDeviceList()
             val selectedDevice = deviceComboBox.selectedItem as? String
-            val screenshotBytes = takeScreenshot(selectedDevice)
-            val raw = dumpUiAutomator(selectedDevice)
+            val screenshotBytes = adbController.takeScreenshot(selectedDevice)
+            val raw = adbController.dumpUiAutomator(selectedDevice)
 
             val dumpNode = if (raw != null) UIAutomatorParser.parse(raw) else null
 
@@ -346,7 +347,7 @@ class ArpToolWindow(private val project: Project) {
     }
 
     private fun refreshDeviceList() {
-        val devices = getConnectedDevices()
+        val devices = adbController.getConnectedDevices()
         val previousSelection = deviceComboBox.selectedItem as? String
         deviceComboBox.model = DefaultComboBoxModel(devices.toTypedArray())
         if (previousSelection != null && devices.contains(previousSelection)) {
