@@ -2,7 +2,7 @@
 <idea-plugin>
     <id>cz.talich.arp</id>
     <name>ARP - Accessibility Report</name>
-    <vendor>Talich</vendor>
+    <vendor>Přemysl Talich</vendor>
 
     <depends>com.intellij.modules.platform</depends>
 
@@ -11,6 +11,6 @@
                     secondary="true"
                     anchor="right"
                     factoryClass="cz.talich.arp.ArpToolWindowFactory"
-                    icon="AllIcons.General.Modified"/>
+                    icon="/icons/toolWindow.svg"/>
     </extensions>
 </idea-plugin>

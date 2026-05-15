@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "cz.talich.arp"
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
@@ -29,11 +29,11 @@ kotlin {
 intellijPlatform {
     pluginConfiguration {
         id.set("cz.talich.arp")
-        name.set("Accessibility Report Plugin")
+        name.set("Android Accessibility Report")
         vendor {
-            name.set("Talich")
+            name.set("Přemysl Talich")
         }
-        description.set("A plugin to dump UI Automator.")
+        description.set("Analyze the accesibility IDs of your Android app")
 
         ideaVersion {
             sinceBuild.set("243")
