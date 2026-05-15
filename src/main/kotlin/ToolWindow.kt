@@ -35,6 +35,14 @@ import java.awt.Cursor
 import java.awt.event.MouseMotionAdapter
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.testFramework.LightVirtualFile
+import java.io.StringWriter
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.OutputKeys
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
 import java.awt.Component
 import javax.swing.JTree
 import javax.swing.tree.DefaultTreeCellRenderer
@@ -145,6 +153,21 @@ class ArpToolWindow(private val project: Project) {
                 e.presentation.isEnabled = rootNode != null
             }
         }
+        fun prettifyXml(xml: String): String = try {
+            val factory = DocumentBuilderFactory.newInstance()
+            val builder = factory.newDocumentBuilder()
+            val document = builder.parse(xml.byteInputStream())
+            val transformer = TransformerFactory.newInstance().newTransformer()
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes")
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2")
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no")
+            val writer = StringWriter()
+            transformer.transform(DOMSource(document), StreamResult(writer))
+            writer.toString()
+        } catch (_: Exception) {
+            xml
+        }
+
         val exportAction = object : AnAction("Export Source XML", "Export raw XML dump", AllIcons.ToolbarDecorator.Export) {
             override fun actionPerformed(e: AnActionEvent) {
                 val xml = rawXml ?: return
@@ -158,8 +181,18 @@ class ArpToolWindow(private val project: Project) {
                     } else {
                         file
                     }
-                    target.writeText(xml)
+                    target.writeText(prettifyXml(xml))
                 }
+            }
+            override fun update(e: AnActionEvent) {
+                e.presentation.isEnabled = rawXml != null
+            }
+        }
+        val viewSourceXmlAction = object : AnAction("View Source XML in Editor", "Open raw XML dump in editor", AllIcons.Actions.Preview) {
+            override fun actionPerformed(e: AnActionEvent) {
+                val xml = rawXml ?: return
+                val virtualFile = LightVirtualFile("ui_dump.xml", prettifyXml(xml))
+                FileEditorManager.getInstance(project).openFile(virtualFile, true)
             }
             override fun update(e: AnActionEvent) {
                 e.presentation.isEnabled = rawXml != null
@@ -179,7 +212,9 @@ class ArpToolWindow(private val project: Project) {
             }
         }
         val treeActionGroup = DefaultActionGroup().apply {
+            add(viewSourceXmlAction)
             add(exportAction)
+            addSeparator()
             add(clearAction)
         }
         val moreAction = object : AnAction("More", "More actions", AllIcons.Actions.More) {
