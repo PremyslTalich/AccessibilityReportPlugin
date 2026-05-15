@@ -37,7 +37,7 @@ Alternatively, install directly from the JetBrains Marketplace once published.
 1. Open the **Accessibility Report** tool window (right sidebar).
 2. Select a connected device from the dropdown.
 3. Click the **Refresh** button to capture the current screen.
-4. Browse the UI hierarchy tree — click any node to see its properties and highlight it on the screenshot.
+4. Browse the UI hierarchy tree — click any node to see its properties and highlight it in the screenshot.
 
 ## Project Structure
 
