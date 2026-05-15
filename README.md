@@ -10,6 +10,12 @@ An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your 
 - **Properties Table** — Shows element details (resource ID, class, text, content description, bounds) for the selected node.
 - **Multi-device Support** — Detects all connected devices and lets you choose which one to inspect.
 
+## Screenshots
+
+![Selected Item](screenshots/selected_item.png)
+
+![Options](screenshots/options.png)
+
 ## Requirements
 
 - **IntelliJ IDEA / Android Studio** 2024.3 or later
