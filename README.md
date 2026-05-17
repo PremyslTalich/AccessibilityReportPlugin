@@ -59,6 +59,10 @@ The project uses the [IntelliJ Platform Gradle Plugin](https://plugins.jetbrains
 ./gradlew test          # Run unit tests
 ```
 
+## Acknowledgements
+
+This project was made with the help of [Junie](https://www.jetbrains.com/junie/), an AI coding agent by JetBrains.
+
 ## License
 
 © Přemysl Talich
