@@ -1,5 +1,5 @@
 import java.util.Properties
-import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType.IntellijIdeaCommunity
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 
 plugins {
     id("java")
@@ -70,7 +70,9 @@ intellijPlatform {
     }
     pluginVerification {
         ides {
-            ide(IntellijIdeaCommunity, "2024.3")
+            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2024.3")
+            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2025.1")
+            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2025.2")
         }
     }
 }
