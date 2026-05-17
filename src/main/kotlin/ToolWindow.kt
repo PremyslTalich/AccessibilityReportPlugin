@@ -5,9 +5,13 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
@@ -46,6 +50,8 @@ import javax.xml.transform.stream.StreamResult
 import java.awt.Component
 import javax.swing.JTree
 import javax.swing.tree.DefaultTreeCellRenderer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 
 class ArpToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
@@ -56,6 +62,7 @@ class ArpToolWindowFactory : ToolWindowFactory {
 }
 
 class ArpToolWindow(private val project: Project) {
+    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val panel = JBPanel<JBPanel<*>>(BorderLayout())
     private val tree = Tree(DefaultMutableTreeNode("No data"))
     private val propertiesTableModel = object : DefaultTableModel(arrayOf("Property", "Value"), 0) {
@@ -312,7 +319,6 @@ class ArpToolWindow(private val project: Project) {
             }
         }
 
-
         deviceComboBox.addPopupMenuListener(object : javax.swing.event.PopupMenuListener {
             override fun popupMenuWillBecomeVisible(e: javax.swing.event.PopupMenuEvent?) {
                 refreshDeviceList()
@@ -324,29 +330,45 @@ class ArpToolWindow(private val project: Project) {
         dumpButton.addActionListener {
             refreshDeviceList()
             val selectedDevice = deviceComboBox.selectedItem as? String
-            val screenshotBytes = adbController.takeScreenshot(selectedDevice)
-            val raw = adbController.dumpUiAutomator(selectedDevice)
+            dumpButton.isEnabled = false
+            dumpButton.text = "Generating..."
+            rootNode = null
+            rawXml = null
+            screenshotLabel.setRootNode(null)
+            tree.model = DefaultTreeModel(DefaultMutableTreeNode("Loading…"))
+            clearPropertiesTable()
+            screenshotLabel.setImage(null)
+            screenshotLabel.setLoading(true)
 
-            val dumpNode = if (raw != null) UIAutomatorParser.parse(raw) else null
+            coroutineScope.launch(Dispatchers.IO) {
+                val screenshotBytes = adbController.takeScreenshot(selectedDevice)
+                val raw = adbController.dumpUiAutomator(selectedDevice)
+                val dumpNode = if (raw != null) UIAutomatorParser.parse(raw) else null
 
-            if (dumpNode != null) {
-                rootNode = dumpNode
-                rawXml = raw
-                screenshotLabel.setRootNode(dumpNode)
-                val root = createTreeNodes(dumpNode)
-                tree.model = DefaultTreeModel(root)
-                expandTreeToLevel(tree, TreePath(root), 2)
-                clearPropertiesTable()
-            } else {
-                tree.model = DefaultTreeModel(DefaultMutableTreeNode("Failed to get UI Automator dump."))
-                clearPropertiesTable()
-            }
+                withContext(Dispatchers.EDT) {
+                    if (dumpNode != null) {
+                        rootNode = dumpNode
+                        rawXml = raw
+                        screenshotLabel.setRootNode(dumpNode)
+                        val root = createTreeNodes(dumpNode)
+                        tree.model = DefaultTreeModel(root)
+                        expandTreeToLevel(tree, TreePath(root), 2)
+                        clearPropertiesTable()
+                    } else {
+                        tree.model = DefaultTreeModel(DefaultMutableTreeNode("Failed to get UI Automator dump."))
+                        clearPropertiesTable()
+                    }
 
-            if (screenshotBytes != null) {
-                val icon = ImageIcon(screenshotBytes)
-                screenshotLabel.setImage(icon.image)
-            } else {
-                screenshotLabel.setImage(null)
+                    if (screenshotBytes != null) {
+                        val icon = ImageIcon(screenshotBytes)
+                        screenshotLabel.setImage(icon.image)
+                    } else {
+                        screenshotLabel.setImage(null)
+                    }
+
+                    dumpButton.text = "Generate report"
+                    refreshDeviceList()
+                }
             }
         }
     }
@@ -431,6 +453,7 @@ private class ScaledImagePanel : JPanel(BorderLayout()) {
     private var highlightBounds: NodeBounds? = null
     private var hoverBounds: NodeBounds? = null
     private var rootNode: Node? = null
+    private var loading: Boolean = false
     var onNodeHovered: ((Node?) -> Unit)? = null
     var onNodeClicked: ((Node?) -> Unit)? = null
 
@@ -505,6 +528,12 @@ private class ScaledImagePanel : JPanel(BorderLayout()) {
         image = img
         highlightBounds = null
         hoverBounds = null
+        loading = false
+        repaint()
+    }
+
+    fun setLoading(isLoading: Boolean) {
+        loading = isLoading
         repaint()
     }
 
@@ -515,6 +544,18 @@ private class ScaledImagePanel : JPanel(BorderLayout()) {
 
     override fun paintComponent(g: Graphics) {
         super.paintComponent(g)
+        if (loading) {
+            val g2 = g as Graphics2D
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+            val text = "Loading…"
+            g2.font = g2.font.deriveFont(16f)
+            val fm = g2.fontMetrics
+            val textX = (width - fm.stringWidth(text)) / 2
+            val textY = height / 2 + fm.ascent / 2
+            g2.color = foreground
+            g2.drawString(text, textX, textY)
+            return
+        }
         val img = image ?: return
         val imgWidth = img.getWidth(this)
         val imgHeight = img.getHeight(this)
