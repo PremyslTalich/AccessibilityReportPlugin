@@ -45,3 +45,4 @@ bin/
 .DS_Store
 /local.properties
 /.idea/markdown.xml
+/plugin-signing-keystore.p12
