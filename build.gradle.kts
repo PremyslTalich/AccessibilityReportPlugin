@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType.IntellijIdeaCommunity
 
 plugins {
     id("java")
@@ -31,6 +32,7 @@ dependencies {
         intellijIdeaCommunity("2024.3")
         instrumentationTools()
         pluginVerifier()
+        zipSigner()
     }
     testImplementation(kotlin("test"))
 }
@@ -44,7 +46,8 @@ intellijPlatform {
         id.set("cz.talich.arp")
         name.set("Android Accessibility Report")
         vendor {
-            name.set("Přemysl Talich")
+            name = "Přemysl Talich"
+            url = "https://github.com/PremyslTalich"
         }
         description.set("Analyze the accesibility IDs of your Android app")
 
@@ -54,21 +57,20 @@ intellijPlatform {
         }
     }
     signing {
-        keyStore.set(file("plugin-signing-keystore.p12"))
-        keyStorePassword.set(localProperty("keystorePassword"))
-        keyStoreKeyAlias.set("plugin-signing-key")
-        keyStoreType.set("PKCS12")
+        certificateChain.set(file("certificate-chain.pem").readText())
+        privateKey.set(file("private.pem").readText())
+        password.set(
+            providers.provider { localProperty("keystorePassword") }
+        )
     }
     publishing {
         token.set(
-            providers.provider {
-                localProperty("publishPluginToken")
-            }
+            providers.provider { localProperty("publishPluginToken") }
         )
     }
     pluginVerification {
         ides {
-            ide(org.jetbrains.intellij.platform.gradle.IntelliJPlatformType.IntellijIdeaCommunity, "2024.3")
+            ide(IntellijIdeaCommunity, "2024.3")
         }
     }
 }

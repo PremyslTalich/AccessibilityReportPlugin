@@ -46,3 +46,5 @@ bin/
 /local.properties
 /.idea/markdown.xml
 /plugin-signing-keystore.p12
+/certificate-chain.pem
+/private.pem
