@@ -287,6 +287,30 @@ class ArpToolWindow(private val project: Project) {
             }
         })
 
+        tree.addMouseMotionListener(object : MouseMotionAdapter() {
+            override fun mouseMoved(e: MouseEvent) {
+                val path = tree.getPathForLocation(e.x, e.y)
+                val treeNode = (path?.lastPathComponent as? DefaultMutableTreeNode)
+                val node = treeNode?.userObject as? Node
+                if (node !== hoveredNode) {
+                    hoveredNode = node
+                    screenshotLabel.setHoverBounds(node?.bounds)
+                    tree.cursor = if (node != null) Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) else Cursor.getDefaultCursor()
+                    tree.repaint()
+                }
+            }
+        })
+        tree.addMouseListener(object : MouseAdapter() {
+            override fun mouseExited(e: MouseEvent) {
+                if (hoveredNode != null) {
+                    hoveredNode = null
+                    screenshotLabel.setHoverBounds(null)
+                    tree.cursor = Cursor.getDefaultCursor()
+                    tree.repaint()
+                }
+            }
+        })
+
         tree.addTreeSelectionListener {
             val selectedNode = tree.lastSelectedPathComponent as? DefaultMutableTreeNode
             val node = selectedNode?.userObject as? Node
@@ -539,6 +563,11 @@ private class ScaledImagePanel : JPanel(BorderLayout()) {
 
     fun setHighlightBounds(bounds: NodeBounds?) {
         highlightBounds = bounds
+        repaint()
+    }
+
+    fun setHoverBounds(bounds: NodeBounds?) {
+        hoverBounds = bounds
         repaint()
     }
 
