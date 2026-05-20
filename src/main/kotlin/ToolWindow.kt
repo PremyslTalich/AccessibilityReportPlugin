@@ -226,12 +226,6 @@ class ArpToolWindow(private val project: Project) {
             override fun isSelected(e: AnActionEvent): Boolean = filterMissingDescriptions
             override fun setSelected(e: AnActionEvent, state: Boolean) {
                 filterMissingDescriptions = state
-                val root = rootNode
-                if (root != null) {
-                    val treeRoot = if (state) createFilteredTreeNodes(root) ?: DefaultMutableTreeNode("No nodes with missing descriptions") else createTreeNodes(root)
-                    tree.model = DefaultTreeModel(treeRoot)
-                    expandTreeToLevel(tree, TreePath(treeRoot), 2)
-                }
                 if (state) {
                     val xml = rawXml
                     if (xml != null) {
