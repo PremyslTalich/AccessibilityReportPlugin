@@ -1,10 +1,7 @@
-# Android Accessibility Report (ARP)
-
-<img src="src/main/resources/META-INF/pluginIcon.svg" alt="Plugin Icon" width="120"/>
-
-<iframe width="245px" height="48px" src="https://plugins.jetbrains.com/embeddable/install/31810"></iframe>
+# Android Accessibility Report (ARP) [![JetBrains Plugin Downloads](https://img.shields.io/jetbrains/plugin/d/31810)](https://plugins.jetbrains.com/plugin/31810-android-accessibility-report/edit)
 
 An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your Android app by dumping and visualizing the UI hierarchy.
+
 
 ## Features
 
@@ -14,9 +11,9 @@ An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your 
 - **Properties Table** — Shows element details (resource ID, class, text, content description, bounds) for the selected node.
 - **Multi-device Support** — Detects all connected devices and lets you choose which one to inspect.
 - **Show Missing Accessibility** — Highlights UI elements with missing accessibility info. Specifically, it flags elements that:
-  - Are missing a `resource-id`, **and**
-  - Are either a `TextView` (`android.widget.TextView`) or a `clickable` element.
-  - **Exception:** `TextView` nodes without a `resource-id` are excluded when nested directly inside a clickable parent that already has a `resource-id`.
+    - Are missing a `resource-id`, **and**
+    - Are either a `TextView` (`android.widget.TextView`) or a `clickable` element.
+    - **Exception:** `TextView` nodes without a `resource-id` are excluded when nested directly inside a clickable parent that already has a `resource-id`.
 
   This helps you quickly identify and fix accessibility gaps.
 
