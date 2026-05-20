@@ -6,6 +6,14 @@
 
     <depends>com.intellij.modules.platform</depends>
 
+    <change-notes><![CDATA[
+        <h3>1.1.0</h3>
+        <ul>
+            <li>Added "Show Missing Accessibility" feature to highlight elements with missing accessibility attributes</li>
+            <li>Added hover highlight on tree nodes</li>
+        </ul>
+    ]]></change-notes>
+
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow id="Accessibility Report"
                     secondary="true"
