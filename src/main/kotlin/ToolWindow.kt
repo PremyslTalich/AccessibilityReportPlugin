@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
@@ -76,6 +77,7 @@ class ArpToolWindow(private val project: Project) {
     private var rootNode: Node? = null
     private var hoveredNode: Node? = null
     private var rawXml: String? = null
+    private var filterMissingDescriptions = false
 
     private val adbController = AdbController(project)
 
@@ -209,7 +211,9 @@ class ArpToolWindow(private val project: Project) {
             override fun actionPerformed(e: AnActionEvent) {
                 rootNode = null
                 rawXml = null
+                filterMissingDescriptions = false
                 screenshotLabel.setRootNode(null)
+                screenshotLabel.setMultiHighlightBounds(emptyList())
                 tree.model = DefaultTreeModel(DefaultMutableTreeNode("No data"))
                 clearPropertiesTable()
                 screenshotLabel.setImage(null)
@@ -218,9 +222,36 @@ class ArpToolWindow(private val project: Project) {
                 e.presentation.isEnabled = rootNode != null
             }
         }
+        val highlightMissingAccessibilityAction = object : ToggleAction("Show Missing Accessibility", "Highlight nodes with missing accessibility", null) {
+            override fun isSelected(e: AnActionEvent): Boolean = filterMissingDescriptions
+            override fun setSelected(e: AnActionEvent, state: Boolean) {
+                filterMissingDescriptions = state
+                val root = rootNode
+                if (root != null) {
+                    val treeRoot = if (state) createFilteredTreeNodes(root) ?: DefaultMutableTreeNode("No nodes with missing descriptions") else createTreeNodes(root)
+                    tree.model = DefaultTreeModel(treeRoot)
+                    expandTreeToLevel(tree, TreePath(treeRoot), 2)
+                }
+                if (state) {
+                    val xml = rawXml
+                    if (xml != null) {
+                        val bounds = UIAutomatorParser.findMissingResourceIdTextViewBounds(xml)
+                        screenshotLabel.setMultiHighlightBounds(bounds)
+                    }
+                } else {
+                    screenshotLabel.setMultiHighlightBounds(emptyList())
+                }
+            }
+            override fun update(e: AnActionEvent) {
+                super.update(e)
+                e.presentation.isEnabled = rootNode != null
+            }
+        }
         val treeActionGroup = DefaultActionGroup().apply {
             add(viewSourceXmlAction)
             add(exportAction)
+            addSeparator()
+            add(highlightMissingAccessibilityAction)
             addSeparator()
             add(clearAction)
         }
@@ -358,7 +389,9 @@ class ArpToolWindow(private val project: Project) {
             dumpButton.text = "Generating..."
             rootNode = null
             rawXml = null
+            filterMissingDescriptions = false
             screenshotLabel.setRootNode(null)
+            screenshotLabel.setMultiHighlightBounds(emptyList())
             tree.model = DefaultTreeModel(DefaultMutableTreeNode("Loading…"))
             clearPropertiesTable()
             screenshotLabel.setImage(null)
@@ -412,6 +445,18 @@ class ArpToolWindow(private val project: Project) {
             treeNode.add(createTreeNodes(child))
         }
         return treeNode
+    }
+
+    private fun createFilteredTreeNodes(node: Node): DefaultMutableTreeNode? {
+        val filteredChildren = node.children.mapNotNull { createFilteredTreeNodes(it) }
+        val isMissing = node.description.isNullOrBlank()
+        return if (isMissing || filteredChildren.isNotEmpty()) {
+            val treeNode = DefaultMutableTreeNode(node)
+            filteredChildren.forEach { treeNode.add(it) }
+            treeNode
+        } else {
+            null
+        }
     }
 
     private fun updatePropertiesTable(node: Node) {
@@ -476,6 +521,7 @@ private class ScaledImagePanel : JPanel(BorderLayout()) {
     private var image: Image? = null
     private var highlightBounds: NodeBounds? = null
     private var hoverBounds: NodeBounds? = null
+    private var multiHighlightBounds: List<NodeBounds> = emptyList()
     private var rootNode: Node? = null
     private var loading: Boolean = false
     var onNodeHovered: ((Node?) -> Unit)? = null
@@ -566,6 +612,11 @@ private class ScaledImagePanel : JPanel(BorderLayout()) {
         repaint()
     }
 
+    fun setMultiHighlightBounds(boundsList: List<NodeBounds>) {
+        multiHighlightBounds = boundsList
+        repaint()
+    }
+
     fun setHoverBounds(bounds: NodeBounds?) {
         hoverBounds = bounds
         repaint()
@@ -610,6 +661,18 @@ private class ScaledImagePanel : JPanel(BorderLayout()) {
             g2.color = Color.RED
             g2.stroke = BasicStroke(2f)
             g2.drawRect(rectX, rectY, rectW, rectH)
+        }
+
+        for (mb in multiHighlightBounds) {
+            val mbX = x + (mb.left * scale).toInt()
+            val mbY = y + (mb.top * scale).toInt()
+            val mbW = ((mb.right - mb.left) * scale).toInt()
+            val mbH = ((mb.bottom - mb.top) * scale).toInt()
+            g2.color = Color(255, 165, 0, 50)
+            g2.fillRect(mbX, mbY, mbW, mbH)
+            g2.color = Color(255, 165, 0)
+            g2.stroke = BasicStroke(2f)
+            g2.drawRect(mbX, mbY, mbW, mbH)
         }
 
         val bounds = highlightBounds

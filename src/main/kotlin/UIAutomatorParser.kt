@@ -52,6 +52,31 @@ object UIAutomatorParser {
         }
     }
 
+    fun findMissingResourceIdTextViewBounds(xmlContent: String): List<NodeBounds> {
+        val root = JDOMUtil.load(StringReader(xmlContent))
+        val result = mutableListOf<NodeBounds>()
+        collectMissingResourceIdTextViews(root, result)
+        return result
+    }
+
+    private fun collectMissingResourceIdTextViews(element: Element, result: MutableList<NodeBounds>, insideClickableWithId: Boolean = false) {
+        val resourceId = element.getAttributeValue("resource-id") ?: ""
+        val className = element.getAttributeValue("class") ?: ""
+        val clickable = element.getAttributeValue("clickable") ?: "false"
+        val isClickableWithId = clickable == "true" && resourceId.isNotBlank()
+        val currentInsideClickableWithId = insideClickableWithId || isClickableWithId
+        val isTextViewWithNoId = className == "android.widget.TextView" && resourceId.isBlank()
+        if (resourceId.isBlank() && (className == "android.widget.TextView" || clickable == "true")) {
+            if (!(isTextViewWithNoId && currentInsideClickableWithId)) {
+                val boundsStr = element.getAttributeValue("bounds") ?: "[0,0][0,0]"
+                result.add(parseBounds(boundsStr))
+            }
+        }
+        for (child in element.children.filterIsInstance<Element>()) {
+            collectMissingResourceIdTextViews(child, result, isClickableWithId)
+        }
+    }
+
     private fun filterEmptyIdNodes(nodes: List<Node>): List<Node> {
         val result = mutableListOf<Node>()
         for (node in nodes) {
