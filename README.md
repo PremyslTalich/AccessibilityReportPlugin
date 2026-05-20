@@ -1,5 +1,9 @@
 # Android Accessibility Report (ARP)
 
+<img src="src/main/resources/META-INF/pluginIcon.svg" alt="Plugin Icon" width="120"/>
+
+<iframe width="245px" height="48px" src="https://plugins.jetbrains.com/embeddable/install/31810"></iframe>
+
 An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your Android app by dumping and visualizing the UI hierarchy.
 
 ## Features
@@ -19,6 +23,8 @@ An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your 
 ## Screenshots
 
 ![Selected Item](screenshots/selected_item.png)
+
+![Missing IDs](screenshots/missing_ids.png)
 
 ![Options](screenshots/options.png)
 
