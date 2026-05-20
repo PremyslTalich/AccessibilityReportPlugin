@@ -1,4 +1,4 @@
-# Android Accessibility Report (ARP) [![JetBrains Plugin Downloads](https://img.shields.io/jetbrains/plugin/d/31810)](https://plugins.jetbrains.com/plugin/31810-android-accessibility-report/edit)
+# Android Accessibility Report (ARP) [![JetBrains Plugin Downloads](https://img.shields.io/jetbrains/plugin/d/31810)](https://plugins.jetbrains.com/plugin/31810-android-accessibility-report)
 
 An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your Android app by dumping and visualizing the UI hierarchy.
 
