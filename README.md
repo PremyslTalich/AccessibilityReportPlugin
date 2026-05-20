@@ -9,7 +9,12 @@ An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your 
 - **Interactive Tree View** — Displays the parsed UI hierarchy in a navigable tree with expand/collapse controls.
 - **Properties Table** — Shows element details (resource ID, class, text, content description, bounds) for the selected node.
 - **Multi-device Support** — Detects all connected devices and lets you choose which one to inspect.
-- **Show Missing Accessibility** — Highlights UI elements that are missing accessibility attributes (e.g., content descriptions or resource IDs), helping you quickly identify and fix accessibility gaps.
+- **Show Missing Accessibility** — Highlights UI elements with missing accessibility info. Specifically, it flags elements that:
+  - Are missing a `resource-id`, **and**
+  - Are either a `TextView` (`android.widget.TextView`) or a `clickable` element.
+  - **Exception:** `TextView` nodes without a `resource-id` are excluded when nested directly inside a clickable parent that already has a `resource-id`.
+
+  This helps you quickly identify and fix accessibility gaps.
 
 ## Screenshots
 
