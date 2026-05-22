@@ -16,6 +16,8 @@ An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your 
     - **Exception:** `TextView` nodes without a `resource-id` are excluded when nested directly inside a clickable parent that already has a `resource-id`.
 
   This helps you quickly identify and fix accessibility gaps.
+- **View HTML Report** — Exports the accessibility report as a self-contained HTML file to `build/reports/accessibility/report.html` and opens it in the browser.
+- **View Source XML** — Exports the raw UI Automator XML dump to `build/reports/accessibility/source.xml` and opens it in the editor.
 
 ## Screenshots
 
@@ -24,6 +26,8 @@ An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your 
 ![Missing IDs](screenshots/missing_ids.png)
 
 ![Options](screenshots/options.png)
+
+![HTML Report](screenshots/html_report.png)
 
 ## Requirements
 
@@ -47,6 +51,8 @@ Alternatively, install directly from the JetBrains Marketplace once published.
 2. Select a connected device from the dropdown.
 3. Click the **Refresh** button to capture the current screen.
 4. Browse the UI hierarchy tree — click any node to see its properties and highlight it in the screenshot.
+5. Use **View HTML Report** to export the report to `build/reports/accessibility/report.html` and open it in your browser.
+6. Use **View Source XML** to inspect the raw UI Automator XML dump in the editor.
 
 ## Project Structure
 
@@ -55,6 +61,7 @@ src/main/kotlin/
 ├── AdbController.kt      # Manages adb commands (device list, UI dump, screenshot)
 ├── Node.kt               # Data classes for UI hierarchy nodes and bounds
 ├── UIAutomatorParser.kt   # Parses uiautomator XML dump into Node tree
+├── HtmlReportGenerator.kt # Generates a self-contained HTML accessibility report
 └── ToolWindow.kt          # Tool window UI (tree, table, screenshot panel)
 ```
 

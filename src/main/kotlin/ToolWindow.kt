@@ -175,7 +175,7 @@ class ArpToolWindow(private val project: Project) {
             xml
         }
 
-        val viewSourceXmlAction = object : AnAction("View Source XML in Editor", "Export raw XML dump to build/reports/accessibility/source.xml and open in editor", AllIcons.Actions.Preview) {
+        val viewSourceXmlAction = object : AnAction("View Source XML", "Export raw XML dump to build/reports/accessibility/source.xml and open in editor", AllIcons.FileTypes.Xml) {
             override fun actionPerformed(e: AnActionEvent) {
                 val xml = rawXml ?: return
                 val reportDir = java.io.File(project.basePath, "build/reports/accessibility")
@@ -190,7 +190,7 @@ class ArpToolWindow(private val project: Project) {
                 e.presentation.isEnabled = rawXml != null
             }
         }
-        val exportHtmlAction = object : AnAction("Export HTML Report", "Export accessibility report as a single HTML file", AllIcons.ToolbarDecorator.Export) {
+        val exportHtmlAction = object : AnAction("View HTML Report", "Export accessibility report as a single HTML file", AllIcons.General.Web) {
             override fun actionPerformed(e: AnActionEvent) {
                 val node = rootNode ?: return
                 val xml = rawXml ?: return
