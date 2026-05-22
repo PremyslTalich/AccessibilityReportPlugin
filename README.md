@@ -25,8 +25,6 @@ An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your 
 
 ![Missing IDs](screenshots/missing_ids.png)
 
-![Options](screenshots/options.png)
-
 ![HTML Report](screenshots/html_report.png)
 
 ## Requirements
