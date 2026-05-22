@@ -77,6 +77,7 @@ class ArpToolWindow(private val project: Project) {
     private var rootNode: Node? = null
     private var hoveredNode: Node? = null
     private var rawXml: String? = null
+    private var screenshotBytes: ByteArray? = null
     private var filterMissingDescriptions = false
 
     private val adbController = AdbController(project)
@@ -207,10 +208,25 @@ class ArpToolWindow(private val project: Project) {
                 e.presentation.isEnabled = rawXml != null
             }
         }
+        val exportHtmlAction = object : AnAction("Export HTML Report", "Export accessibility report as a single HTML file", AllIcons.ToolbarDecorator.Export) {
+            override fun actionPerformed(e: AnActionEvent) {
+                val node = rootNode ?: return
+                val xml = rawXml ?: return
+                val reportDir = java.io.File(project.basePath, "build/reports/accessibility")
+                reportDir.mkdirs()
+                val target = java.io.File(reportDir, "report.html")
+                target.writeText(HtmlReportGenerator.generate(node, xml, screenshotBytes))
+                java.awt.Desktop.getDesktop().browse(target.toURI())
+            }
+            override fun update(e: AnActionEvent) {
+                e.presentation.isEnabled = rootNode != null
+            }
+        }
         val clearAction = object : AnAction("Clear Data", "Clear all data", AllIcons.Actions.GC) {
             override fun actionPerformed(e: AnActionEvent) {
                 rootNode = null
                 rawXml = null
+                screenshotBytes = null
                 filterMissingDescriptions = false
                 screenshotLabel.setRootNode(null)
                 screenshotLabel.setMultiHighlightBounds(emptyList())
@@ -244,6 +260,7 @@ class ArpToolWindow(private val project: Project) {
         val treeActionGroup = DefaultActionGroup().apply {
             add(viewSourceXmlAction)
             add(exportAction)
+            add(exportHtmlAction)
             addSeparator()
             add(highlightMissingAccessibilityAction)
             addSeparator()
@@ -392,7 +409,7 @@ class ArpToolWindow(private val project: Project) {
             screenshotLabel.setLoading(true)
 
             coroutineScope.launch(Dispatchers.IO) {
-                val screenshotBytes = adbController.takeScreenshot(selectedDevice)
+                val capturedScreenshotBytes = adbController.takeScreenshot(selectedDevice)
                 val raw = adbController.dumpUiAutomator(selectedDevice)
                 val dumpNode = if (raw != null) UIAutomatorParser.parse(raw) else null
 
@@ -400,6 +417,7 @@ class ArpToolWindow(private val project: Project) {
                     if (dumpNode != null) {
                         rootNode = dumpNode
                         rawXml = raw
+                        screenshotBytes = capturedScreenshotBytes
                         screenshotLabel.setRootNode(dumpNode)
                         val root = createTreeNodes(dumpNode)
                         tree.model = DefaultTreeModel(root)
@@ -410,8 +428,8 @@ class ArpToolWindow(private val project: Project) {
                         clearPropertiesTable()
                     }
 
-                    if (screenshotBytes != null) {
-                        val icon = ImageIcon(screenshotBytes)
+                    if (capturedScreenshotBytes != null) {
+                        val icon = ImageIcon(capturedScreenshotBytes)
                         screenshotLabel.setImage(icon.image)
                     } else {
                         screenshotLabel.setImage(null)
