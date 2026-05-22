@@ -38,10 +38,7 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.Cursor
 import java.awt.event.MouseMotionAdapter
-import com.intellij.openapi.fileChooser.FileChooserFactory
-import com.intellij.openapi.fileChooser.FileSaverDescriptor
 import com.intellij.openapi.fileEditor.FileEditorManager
-import com.intellij.testFramework.LightVirtualFile
 import java.io.StringWriter
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.OutputKeys
@@ -178,30 +175,15 @@ class ArpToolWindow(private val project: Project) {
             xml
         }
 
-        val exportAction = object : AnAction("Export Source XML", "Export raw XML dump", AllIcons.ToolbarDecorator.Export) {
+        val viewSourceXmlAction = object : AnAction("View Source XML in Editor", "Export raw XML dump to build/reports/accessibility/source.xml and open in editor", AllIcons.Actions.Preview) {
             override fun actionPerformed(e: AnActionEvent) {
                 val xml = rawXml ?: return
-                val descriptor = FileSaverDescriptor("Export UI Dump", "Save raw XML dump", "xml")
-                val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
-                val wrapper = dialog.save("ui_dump.xml")
-                if (wrapper != null) {
-                    val file = wrapper.file
-                    val target = if (!file.name.endsWith(".xml", ignoreCase = true)) {
-                        java.io.File(file.absolutePath + ".xml")
-                    } else {
-                        file
-                    }
-                    target.writeText(prettifyXml(xml))
-                }
-            }
-            override fun update(e: AnActionEvent) {
-                e.presentation.isEnabled = rawXml != null
-            }
-        }
-        val viewSourceXmlAction = object : AnAction("View Source XML in Editor", "Open raw XML dump in editor", AllIcons.Actions.Preview) {
-            override fun actionPerformed(e: AnActionEvent) {
-                val xml = rawXml ?: return
-                val virtualFile = LightVirtualFile("ui_dump.xml", prettifyXml(xml))
+                val reportDir = java.io.File(project.basePath, "build/reports/accessibility")
+                reportDir.mkdirs()
+                val target = java.io.File(reportDir, "source.xml")
+                target.writeText(prettifyXml(xml))
+                val virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance().refreshAndFindFileByIoFile(target)
+                    ?: return
                 FileEditorManager.getInstance(project).openFile(virtualFile, true)
             }
             override fun update(e: AnActionEvent) {
@@ -259,7 +241,6 @@ class ArpToolWindow(private val project: Project) {
         }
         val treeActionGroup = DefaultActionGroup().apply {
             add(viewSourceXmlAction)
-            add(exportAction)
             add(exportHtmlAction)
             addSeparator()
             add(highlightMissingAccessibilityAction)
