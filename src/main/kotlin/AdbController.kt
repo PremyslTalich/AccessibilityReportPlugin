@@ -1,77 +1,101 @@
 package cz.talich.arp
 
+import com.android.ddmlib.AndroidDebugBridge
+import com.android.ddmlib.CollectingOutputReceiver
+import com.android.ddmlib.IDevice
+import com.android.sdklib.devices.DeviceManager
+import com.android.sdklib.internal.avd.AvdManager
 import com.intellij.openapi.project.Project
-import java.io.File
-import java.util.Properties
+import org.jetbrains.android.sdk.StudioAndroidSdkData
 import java.util.concurrent.TimeUnit
 
 class AdbController(private val project: Project?) {
-    val adbPath by lazy { getAdbPath(project) }
 
-    fun getConnectedDevices(): List<String> {
-        val output = runCommand("devices") ?: return emptyList()
-        return output.lines()
-            .drop(1)
-            .map { it.trim() }
-            .filter { it.endsWith("device") }
-            .map { it.split("\t").first() }
+    data class DeviceInfo(val serial: String, val displayName: String)
+
+    private val avdManager: AvdManager? by lazy { resolveAvdManager() }
+
+    private fun resolveAvdManager(): AvdManager? {
+        return try {
+            val sdkHandler = StudioAndroidSdkData.getSdkData(project ?: return null)?.sdkHandler ?: return null
+            val logger = object : com.android.utils.ILogger {
+                override fun error(t: Throwable?, msgFormat: String?, vararg args: Any?) {}
+                override fun warning(msgFormat: String, vararg args: Any?) {}
+                override fun info(msgFormat: String, vararg args: Any?) {}
+                override fun verbose(msgFormat: String, vararg args: Any?) {}
+            }
+            val deviceManager = DeviceManager.createInstance(sdkHandler, logger)
+            val avdFolder = java.nio.file.Paths.get(System.getProperty("user.home"), ".android", "avd")
+            AvdManager.createInstance(sdkHandler, avdFolder, deviceManager, logger)
+        } catch (_: Exception) { null }
+    }
+
+    private fun resolveDisplayName(avdName: String?): String? {
+        if (avdName.isNullOrBlank()) return null
+        return try {
+            avdManager?.getAvd(avdName, false)?.displayName?.takeIf { it.isNotBlank() } ?: avdName.replace('_', ' ')
+        } catch (_: Exception) { avdName.replace('_', ' ') }
+    }
+
+    fun getConnectedDevices(): List<DeviceInfo> {
+        val bridge = AndroidDebugBridge.getBridge()
+        if (bridge != null && bridge.isConnected && bridge.hasInitialDeviceList()) {
+            return bridge.devices
+                .filter { it.isOnline }
+                .map { device ->
+                    val avdName = try {
+                        device.getAvdData().get(2, TimeUnit.SECONDS)?.name?.takeIf { it.isNotBlank() }
+                    } catch (_: Exception) { null }
+                    val name = resolveDisplayName(avdName) ?: device.serialNumber
+                    DeviceInfo(device.serialNumber, name)
+                }
+        }
+        return emptyList()
+    }
+
+    private fun findDevice(serial: String?): IDevice? {
+        val bridge = AndroidDebugBridge.getBridge() ?: return null
+        if (!bridge.isConnected || !bridge.hasInitialDeviceList()) return null
+        return if (serial != null) {
+            bridge.devices.firstOrNull { it.serialNumber == serial && it.isOnline }
+        } else {
+            bridge.devices.firstOrNull { it.isOnline }
+        }
     }
 
     fun dumpUiAutomator(serial: String? = null): String? {
-        val prefix = if (serial != null) arrayOf("-s", serial) else emptyArray()
+        val device = findDevice(serial) ?: return null
+        return try {
+            val dumpReceiver = CollectingOutputReceiver()
+            device.executeShellCommand("uiautomator dump /sdcard/view.xml", dumpReceiver, 10, TimeUnit.SECONDS)
+            val dumpOutput = dumpReceiver.output
+            if (!dumpOutput.contains("UI hierarchy dumped to") && !dumpOutput.contains("UI hierchary dumped to")) {
+                if (dumpOutput.contains("ERROR")) return null
+            }
 
-        val dumpResult = runCommand(*prefix, "shell", "uiautomator", "dump", "/sdcard/view.xml")
-        if (dumpResult == null || (!dumpResult.contains("UI hierarchy dumped to") && !dumpResult.contains("UI hierchary dumped to"))) {
-            if (dumpResult?.contains("ERROR") == true) return null
-        }
+            val catReceiver = CollectingOutputReceiver()
+            device.executeShellCommand("cat /sdcard/view.xml", catReceiver, 10, TimeUnit.SECONDS)
+            val content = catReceiver.output
 
-        val content = runCommand(*prefix, "shell", "cat", "/sdcard/view.xml")
+            device.executeShellCommand("rm /sdcard/view.xml", CollectingOutputReceiver(), 5, TimeUnit.SECONDS)
 
-        runCommand(*prefix, "shell", "rm", "/sdcard/view.xml")
-
-        return content
+            content.takeIf { it.isNotBlank() }
+        } catch (_: Exception) { null }
     }
 
     fun takeScreenshot(serial: String? = null): ByteArray? {
-        val cmd = if (serial != null) listOf(adbPath, "-s", serial, "exec-out", "screencap", "-p") else listOf(adbPath, "exec-out", "screencap", "-p")
+        val device = findDevice(serial) ?: return null
         return try {
-            val process = ProcessBuilder(cmd)
-                .redirectErrorStream(false)
-                .start()
-            val bytes = process.inputStream.readBytes()
-            process.waitFor(10, TimeUnit.SECONDS)
-            if (process.exitValue() == 0 && bytes.isNotEmpty()) bytes else null
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun getAdbPath(project: Project?): String {
-        val basePath = project?.basePath
-        val localPropertiesFile = if (basePath != null) File(basePath, "local.properties") else File("local.properties")
-        if (!localPropertiesFile.exists()) return "adb"
-
-        val props = Properties()
-        localPropertiesFile.inputStream().use { props.load(it) }
-        val sdkDir = props.getProperty("sdk.dir") ?: return "adb"
-
-        val adbBinary = if (System.getProperty("os.name").lowercase().contains("win")) "adb.exe" else "adb"
-        val adbFile = File(sdkDir, "platform-tools/$adbBinary")
-        return if (adbFile.exists()) adbFile.absolutePath else "adb"
-    }
-
-    private fun runCommand(vararg command: String): String? {
-        return try {
-            val process = ProcessBuilder(adbPath, *command)
-                .redirectErrorStream(true)
-                .start()
-
-            val output = process.inputStream.bufferedReader().readText()
-            process.waitFor(10, TimeUnit.SECONDS)
-
-            if (process.exitValue() == 0) output else null
-        } catch (e: Exception) {
-            null
-        }
+            val remotePath = "/sdcard/screenshot_arp.png"
+            val localFile = java.io.File.createTempFile("arp_screenshot", ".png")
+            try {
+                device.executeShellCommand("screencap -p $remotePath", CollectingOutputReceiver(), 10, TimeUnit.SECONDS)
+                device.pullFile(remotePath, localFile.absolutePath)
+                device.executeShellCommand("rm $remotePath", CollectingOutputReceiver(), 5, TimeUnit.SECONDS)
+                localFile.readBytes().takeIf { it.isNotEmpty() }
+            } finally {
+                localFile.delete()
+            }
+        } catch (_: Exception) { null }
     }
 }

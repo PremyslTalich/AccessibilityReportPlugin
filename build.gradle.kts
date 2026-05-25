@@ -29,7 +29,8 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity("2024.3")
+        androidStudio("2024.3.2.14")
+        bundledPlugin("org.jetbrains.android")
         instrumentationTools()
         pluginVerifier()
         zipSigner()
@@ -70,9 +71,7 @@ intellijPlatform {
     }
     pluginVerification {
         ides {
-            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2024.3")
-            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2025.1")
-            ide(IntelliJPlatformType.IntellijIdeaCommunity, "2025.2")
+            ide(IntelliJPlatformType.AndroidStudio, "2024.3.2.14")
         }
     }
 }

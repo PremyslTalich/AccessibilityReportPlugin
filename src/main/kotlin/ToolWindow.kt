@@ -67,7 +67,7 @@ class ArpToolWindow(private val project: Project) {
         override fun isCellEditable(row: Int, column: Int) = false
     }
     private val propertiesTable = JBTable(propertiesTableModel)
-    private val deviceComboBox = JComboBox<String>()
+    private val deviceComboBox = JComboBox<AdbController.DeviceInfo>()
     private val dumpButton = JButton("Generate report")
     private val screenshotLabel = ScaledImagePanel()
 
@@ -376,7 +376,7 @@ class ArpToolWindow(private val project: Project) {
 
         dumpButton.addActionListener {
             refreshDeviceList()
-            val selectedDevice = deviceComboBox.selectedItem as? String
+            val selectedDevice = (deviceComboBox.selectedItem as? AdbController.DeviceInfo)?.serial
             dumpButton.isEnabled = false
             dumpButton.text = "Generating..."
             rootNode = null
@@ -467,10 +467,16 @@ class ArpToolWindow(private val project: Project) {
 
     private fun refreshDeviceList() {
         val devices = adbController.getConnectedDevices()
-        val previousSelection = deviceComboBox.selectedItem as? String
+        val previousSerial = (deviceComboBox.selectedItem as? AdbController.DeviceInfo)?.serial
         deviceComboBox.model = DefaultComboBoxModel(devices.toTypedArray())
-        if (previousSelection != null && devices.contains(previousSelection)) {
-            deviceComboBox.selectedItem = previousSelection
+        deviceComboBox.renderer = object : javax.swing.DefaultListCellRenderer() {
+            override fun getListCellRendererComponent(list: javax.swing.JList<*>?, value: Any?, index: Int, isSelected: Boolean, cellHasFocus: Boolean): java.awt.Component {
+                val display = (value as? AdbController.DeviceInfo)?.displayName ?: value
+                return super.getListCellRendererComponent(list, display, index, isSelected, cellHasFocus)
+            }
+        }
+        if (previousSerial != null) {
+            devices.find { it.serial == previousSerial }?.let { deviceComboBox.selectedItem = it }
         }
         dumpButton.isEnabled = devices.isNotEmpty()
     }
@@ -511,6 +517,7 @@ class ArpToolWindow(private val project: Project) {
 }
 
 private class ScaledImagePanel : JPanel(BorderLayout()) {
+    override fun getPreferredSize() = java.awt.Dimension(300, 300)
     private var image: Image? = null
     private var highlightBounds: NodeBounds? = null
     private var hoverBounds: NodeBounds? = null

@@ -5,6 +5,7 @@
     <vendor>Přemysl Talich</vendor>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.android</depends>
 
     <change-notes><![CDATA[
         <h3>1.2.0</h3>
