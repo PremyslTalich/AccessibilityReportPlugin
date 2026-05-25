@@ -9,7 +9,7 @@ An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your 
 - **Screenshot Overlay** — Takes a device screenshot and highlights UI elements as you browse the hierarchy tree.
 - **Interactive Tree View** — Displays the parsed UI hierarchy in a navigable tree with expand/collapse controls.
 - **Properties Table** — Shows element details (resource ID, class, text, content description, bounds) for the selected node.
-- **Multi-device Support** — Detects all connected devices and lets you choose which one to inspect.
+- **Multi-device Support** — Detects all connected devices (including AVDs with their display names) and lets you choose which one to inspect via a toolbar combo box.
 - **Show Missing Accessibility** — Highlights UI elements with missing accessibility info. Specifically, it flags elements that:
     - Are missing a `resource-id`, **and**
     - Are either a `TextView` (`android.widget.TextView`) or a `clickable` element.
@@ -29,8 +29,8 @@ An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your 
 
 ## Requirements
 
-- **IntelliJ IDEA / Android Studio** 2024.3 or later
-- **Android SDK** with `adb` available (resolved automatically via `local.properties` or system PATH)
+- **Android Studio** 2024.3 or later
+- **Android SDK** configured in Android Studio (ADB is resolved automatically via Android Studio's built-in SDK integration)
 - A connected Android device or running emulator with USB debugging enabled
 
 ## Installation

@@ -18,7 +18,7 @@ fun localProperty(name: String): String? =
     localProperties.getProperty(name)
 
 group = "cz.talich.arp"
-version = "1.2.0"
+version = "1.3.0"
 
 repositories {
     mavenCentral()
