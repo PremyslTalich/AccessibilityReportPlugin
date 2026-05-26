@@ -262,12 +262,41 @@ class ArpToolWindow(private val project: Project) {
         val toolbar = ActionManager.getInstance().createActionToolbar("ArpTreeToolbar", toolbarGroup, true)
         toolbar.targetComponent = tree
 
-        val buttonPanel = JPanel(BorderLayout())
         val leftButtons = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 5))
         leftButtons.add(deviceComboBox)
         leftButtons.add(dumpButton)
-        buttonPanel.add(leftButtons, BorderLayout.WEST)
-        buttonPanel.add(toolbar.component, BorderLayout.EAST)
+        val rightButtons = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 5, 5))
+        rightButtons.add(toolbar.component)
+        val buttonPanel = object : JPanel() {
+            init {
+                layout = null
+            }
+            override fun doLayout() {
+                val w = width
+                val leftPref = leftButtons.preferredSize
+                val rightPref = rightButtons.preferredSize
+                val fits = leftPref.width + rightPref.width <= w
+                if (fits) {
+                    leftButtons.setBounds(0, 0, leftPref.width, leftPref.height)
+                    rightButtons.setBounds(w - rightPref.width, 0, rightPref.width, rightPref.height)
+                } else {
+                    leftButtons.setBounds(0, 0, w, leftPref.height)
+                    rightButtons.setBounds(0, leftPref.height, w, rightPref.height)
+                }
+            }
+            override fun getPreferredSize(): java.awt.Dimension {
+                val leftPref = leftButtons.preferredSize
+                val rightPref = rightButtons.preferredSize
+                val fits = leftPref.width + rightPref.width <= (parent?.width ?: Int.MAX_VALUE)
+                return if (fits) {
+                    java.awt.Dimension(leftPref.width + rightPref.width, maxOf(leftPref.height, rightPref.height))
+                } else {
+                    java.awt.Dimension(maxOf(leftPref.width, rightPref.width), leftPref.height + rightPref.height)
+                }
+            }
+        }
+        buttonPanel.add(leftButtons)
+        buttonPanel.add(rightButtons)
 
         val leftPanel = JBPanel<JBPanel<*>>(BorderLayout())
         leftPanel.add(buttonPanel, BorderLayout.NORTH)
