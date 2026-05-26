@@ -48,3 +48,4 @@ bin/
 /plugin-signing-keystore.p12
 /certificate-chain.pem
 /private.pem
+/.intellijPlatform/
