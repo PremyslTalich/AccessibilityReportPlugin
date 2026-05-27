@@ -1,6 +1,6 @@
 # Android Accessibility Report (ARP) [![JetBrains Plugin Downloads](https://img.shields.io/jetbrains/plugin/d/31810)](https://plugins.jetbrains.com/plugin/31810-android-accessibility-report)
 
-An IntelliJ / Android Studio plugin that analyzes the accessibility IDs of your Android app by dumping and visualizing the UI hierarchy.
+An Android Studio plugin that analyzes the accessibility IDs of your Android app by dumping and visualizing the UI hierarchy.
 
 
 ## Features
@@ -47,10 +47,12 @@ Alternatively, install directly from the JetBrains Marketplace once published.
 
 1. Open the **Accessibility Report** tool window (right sidebar).
 2. Select a connected device from the dropdown.
-3. Click the **Refresh** button to capture the current screen.
-4. Browse the UI hierarchy tree — click any node to see its properties and highlight it in the screenshot.
-5. Use **View HTML Report** to export the report to `build/reports/accessibility/report.html` and open it in your browser.
-6. Use **View Source XML** to inspect the raw UI Automator XML dump in the editor.
+3. Click **Generate report** to capture the current screen and build the UI hierarchy.
+4. Browse the UI hierarchy tree — click any node to see its properties and highlight it in the screenshot. You can also click directly on the screenshot to select the corresponding node.
+5. Use **Show Missing Accessibility** (in the ⋮ menu) to highlight elements with missing accessibility info on the screenshot.
+6. Use **View HTML Report** (in the ⋮ menu) to export the report to `build/reports/accessibility/report.html` and open it in your browser.
+7. Use **View Source XML** (in the ⋮ menu) to inspect the raw UI Automator XML dump in the editor.
+8. Use **Clear Data** (in the ⋮ menu) to reset the tool window.
 
 ## Project Structure
 
