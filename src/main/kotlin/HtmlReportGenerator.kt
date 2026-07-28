@@ -4,8 +4,7 @@ import java.util.Base64
 
 object HtmlReportGenerator {
 
-    fun generate(rootNode: Node, rawXml: String, screenshotBytes: ByteArray?): String {
-        val missingBounds = UIAutomatorParser.findMissingResourceIdTextViewBounds(rawXml).toSet()
+    fun generate(rootNode: Node, screenshotBytes: ByteArray?): String {
         val screenshotBase64 = screenshotBytes?.let { Base64.getEncoder().encodeToString(it) }
 
         return """<!DOCTYPE html>
@@ -28,8 +27,6 @@ object HtmlReportGenerator {
   #right { flex: 1; overflow: auto; display: flex; align-items: flex-start; justify-content: center; background: #252526; position: relative; }
   #screenshot-wrapper { position: relative; display: inline-block; }
   #screenshot { display: block; max-width: 100%; max-height: 100vh; cursor: default; }
-  .overlay { position: absolute; pointer-events: none; }
-  .missing-box { position: absolute; border: 2px solid rgba(255,165,0,0.85); background: rgba(255,165,0,0.2); pointer-events: none; }
   .hover-box { position: absolute; border: 2px solid rgba(255,0,0,0.85); background: rgba(255,0,0,0.31); pointer-events: none; display: none; }
   .selected-box { position: absolute; border: 2px solid rgba(0,120,255,0.9); background: rgba(0,120,255,0.2); pointer-events: none; display: none; }
 
@@ -40,10 +37,8 @@ object HtmlReportGenerator {
   .tree-node:hover { background: #2a2d2e; }
   .tree-node.selected { background: #094771; color: #ffffff; }
   .tree-node.hovered:not(.selected) { color: #ff4444; }
-  .tree-node.missing:not(.selected):not(.hovered) { color: #f48771; }
   .toggle { display: inline-block; width: 14px; text-align: center; font-size: 0.75rem; color: #888; flex-shrink: 0; cursor: pointer; }
   .node-label { font-size: 0.82rem; }
-  .missing-badge { font-size: 0.68rem; background: #f48771; color: #1e1e1e; border-radius: 3px; padding: 0 4px; margin-left: 4px; flex-shrink: 0; }
 
   /* Properties table */
   table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
@@ -75,7 +70,6 @@ object HtmlReportGenerator {
 <div id="right">
   <div id="screenshot-wrapper">
     ${if (screenshotBase64 != null) """<img id="screenshot" src="data:image/png;base64,$screenshotBase64" alt="Screenshot">""" else """<div style="color:#888;padding:32px;">No screenshot available</div>"""}
-    <div id="overlay" class="overlay"></div>
     <div id="hover-box" class="hover-box"></div>
     <div id="selected-box" class="selected-box"></div>
   </div>
@@ -83,7 +77,7 @@ object HtmlReportGenerator {
 </div>
 
 <script>
-const nodes = ${buildNodeJson(rootNode, missingBounds)};
+const nodes = ${buildNodeJson(rootNode)};
 
 let selectedEl = null;
 let selectedNode = null;
@@ -98,7 +92,7 @@ function buildTree(nodeList, parentUl, depth) {
   nodeList.forEach(n => {
     const li = document.createElement('li');
     const div = document.createElement('div');
-    div.className = 'tree-node' + (n.missing ? ' missing' : '');
+    div.className = 'tree-node';
     div._node = n;
 
     const toggle = document.createElement('span');
@@ -112,18 +106,11 @@ function buildTree(nodeList, parentUl, depth) {
     div.appendChild(toggle);
     div.appendChild(label);
 
-    if (n.missing) {
-      const badge = document.createElement('span');
-      badge.className = 'missing-badge';
-      badge.textContent = '!';
-      div.appendChild(badge);
-    }
-
     li.appendChild(div);
 
     let childUl = null;
     if (n.children && n.children.length) {
-      toggle.textContent = '▼';
+      toggle.textContent = '▶';
       childUl = document.createElement('ul');
       // Expand first 2 levels by default (depth 0 and 1), matching tool window expandTreeToLevel(..., 2)
       const expanded = depth < 2;
@@ -136,7 +123,7 @@ function buildTree(nodeList, parentUl, depth) {
         e.stopPropagation();
         const open = childUl.style.display !== 'none';
         childUl.style.display = open ? 'none' : '';
-        toggle.textContent = open ? '▼' : '▶';
+        toggle.textContent = open ? '▶' : '▼';
       });
     } else {
       toggle.textContent = ' ';
@@ -151,7 +138,7 @@ function buildTree(nodeList, parentUl, depth) {
       if (childUl) {
         const open = childUl.style.display !== 'none';
         childUl.style.display = open ? 'none' : '';
-        toggle.textContent = open ? '▼' : '▶';
+        toggle.textContent = open ? '▶' : '▼';
       }
       if (selectedEl !== div) selectNode(n, div);
       setTimeout(() => { dblClickPending = false; }, 0);
@@ -261,36 +248,6 @@ function clearProps() {
   document.getElementById('props-body').innerHTML = '';
 }
 
-function drawMissingOverlay() {
-  const img = document.getElementById('screenshot');
-  const overlay = document.getElementById('overlay');
-  if (!img || !overlay) return;
-  overlay.innerHTML = '';
-  overlay.style.left = '0'; overlay.style.top = '0';
-  overlay.style.width = img.clientWidth + 'px';
-  overlay.style.height = img.clientHeight + 'px';
-
-  const sx = img.clientWidth / img.naturalWidth;
-  const sy = img.clientHeight / img.naturalHeight;
-
-  function walk(nodeList) {
-    nodeList.forEach(n => {
-      if (n.missing && n.boundsRaw) {
-        const b = n.boundsRaw;
-        const div = document.createElement('div');
-        div.className = 'missing-box';
-        div.style.left = (b.left * sx) + 'px';
-        div.style.top = (b.top * sy) + 'px';
-        div.style.width = ((b.right - b.left) * sx) + 'px';
-        div.style.height = ((b.bottom - b.top) * sy) + 'px';
-        overlay.appendChild(div);
-      }
-      if (n.children) walk(n.children);
-    });
-  }
-  walk(nodes);
-}
-
 // Map from node object to its tree div element, for reverse lookup
 const nodeToDivMap = new Map();
 
@@ -340,10 +297,7 @@ function revealNodeDiv(div) {
 
 const img = document.getElementById('screenshot');
 if (img) {
-  if (img.complete) { drawMissingOverlay(); }
-  else { img.addEventListener('load', drawMissingOverlay); }
   window.addEventListener('resize', () => {
-    drawMissingOverlay();
     if (selectedNode) showSelectedBox(selectedNode);
   });
 
@@ -459,14 +413,13 @@ function collapseAll() {
 </html>"""
     }
 
-    private fun buildNodeJson(node: Node, missingBounds: Set<NodeBounds>): String {
+    private fun buildNodeJson(node: Node): String {
         val sb = StringBuilder()
-        appendNodeJson(node, missingBounds, sb)
+        appendNodeJson(node, sb)
         return "[$sb]"
     }
 
-    private fun appendNodeJson(node: Node, missingBounds: Set<NodeBounds>, sb: StringBuilder) {
-        val isMissing = node.bounds in missingBounds
+    private fun appendNodeJson(node: Node, sb: StringBuilder) {
         sb.append("{")
         sb.append(""""id":${jsonStr(node.id)},""")
         sb.append(""""className":${jsonStr(node.className)},""")
@@ -474,11 +427,10 @@ function collapseAll() {
         sb.append(""""description":${jsonStr(node.description ?: "")},""")
         sb.append(""""bounds":"[${node.bounds.left},${node.bounds.top}][${node.bounds.right},${node.bounds.bottom}]",""")
         sb.append(""""boundsRaw":{"left":${node.bounds.left},"top":${node.bounds.top},"right":${node.bounds.right},"bottom":${node.bounds.bottom}},""")
-        sb.append(""""missing":$isMissing,""")
         sb.append(""""children":[""")
         node.children.forEachIndexed { i, child ->
             if (i > 0) sb.append(",")
-            appendNodeJson(child, missingBounds, sb)
+            appendNodeJson(child, sb)
         }
         sb.append("]}")
     }

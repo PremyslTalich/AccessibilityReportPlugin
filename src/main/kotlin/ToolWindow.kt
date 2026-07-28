@@ -193,11 +193,10 @@ class ArpToolWindow(private val project: Project) {
         val exportHtmlAction = object : AnAction("View HTML Report", "Export accessibility report as a single HTML file", AllIcons.General.Web) {
             override fun actionPerformed(e: AnActionEvent) {
                 val node = rootNode ?: return
-                val xml = rawXml ?: return
                 val reportDir = java.io.File(project.basePath, "build/reports/accessibility")
                 reportDir.mkdirs()
                 val target = java.io.File(reportDir, "report.html")
-                target.writeText(HtmlReportGenerator.generate(node, xml, screenshotBytes))
+                target.writeText(HtmlReportGenerator.generate(node, screenshotBytes))
                 java.awt.Desktop.getDesktop().browse(target.toURI())
             }
             override fun update(e: AnActionEvent) {
