@@ -17,6 +17,7 @@ An Android Studio plugin that analyzes the accessibility IDs of your Android app
 
   This helps you quickly identify and fix accessibility gaps.
 - **View HTML Report** — Exports the accessibility report as a self-contained HTML file to `build/reports/accessibility/report.html` and opens it in the browser.
+- **Export HTML Report...** — Saves the accessibility report as a self-contained HTML file at a location of your choice.
 - **View Source XML** — Exports the raw UI Automator XML dump to `build/reports/accessibility/source.xml` and opens it in the editor.
 
 ## Screenshots
@@ -51,8 +52,9 @@ Alternatively, install directly from the JetBrains Marketplace once published.
 4. Browse the UI hierarchy tree — click any node to see its properties and highlight it in the screenshot. You can also click directly on the screenshot to select the corresponding node.
 5. Use **Show Missing Accessibility** (in the ⋮ menu) to highlight elements with missing accessibility info on the screenshot.
 6. Use **View HTML Report** (in the ⋮ menu) to export the report to `build/reports/accessibility/report.html` and open it in your browser.
-7. Use **View Source XML** (in the ⋮ menu) to inspect the raw UI Automator XML dump in the editor.
-8. Use **Clear Data** (in the ⋮ menu) to reset the tool window.
+7. Use **Export HTML Report...** (in the ⋮ menu) to save the report to a location of your choice.
+8. Use **View Source XML** (in the ⋮ menu) to inspect the raw UI Automator XML dump in the editor.
+9. Use **Clear Data** (in the ⋮ menu) to reset the tool window.
 
 ## Project Structure
 
@@ -77,7 +79,7 @@ The project uses the [IntelliJ Platform Gradle Plugin](https://plugins.jetbrains
 
 ## Acknowledgements
 
-This project was made with the help of [Junie](https://www.jetbrains.com/junie/), an AI coding agent by JetBrains.
+This project was made with the help of [Junie](https://www.jetbrains.com/junie/), an AI coding agent by JetBrains, and [Claude Code](https://claude.com/claude-code), an AI coding agent by Anthropic.
 
 ## License
 
