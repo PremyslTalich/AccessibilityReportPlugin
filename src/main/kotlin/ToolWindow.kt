@@ -1,6 +1,7 @@
 package cz.talich.arp
 
 import com.intellij.icons.AllIcons
+import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -39,6 +40,9 @@ import java.awt.event.MouseEvent
 import java.awt.Cursor
 import java.awt.event.MouseMotionAdapter
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileChooser.FileChooserFactory
+import com.intellij.openapi.fileChooser.FileSaverDescriptor
+import com.intellij.openapi.vfs.LocalFileSystem
 import java.io.StringWriter
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.OutputKeys
@@ -197,7 +201,22 @@ class ArpToolWindow(private val project: Project) {
                 reportDir.mkdirs()
                 val target = java.io.File(reportDir, "report.html")
                 target.writeText(HtmlReportGenerator.generate(node, screenshotBytes))
-                java.awt.Desktop.getDesktop().browse(target.toURI())
+                BrowserUtil.browse(target)
+            }
+            override fun update(e: AnActionEvent) {
+                e.presentation.isEnabled = rootNode != null
+            }
+        }
+        val exportHtmlAsAction = object : AnAction("Export HTML Report...", "Save accessibility report as an HTML file at a custom location", AllIcons.Actions.MenuSaveall) {
+            override fun actionPerformed(e: AnActionEvent) {
+                val node = rootNode ?: return
+                val descriptor = FileSaverDescriptor("Export HTML Report", "Choose where to save the HTML report", "html")
+                val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
+                val baseDir = project.basePath?.let { LocalFileSystem.getInstance().findFileByPath(it) }
+                val wrapper = dialog.save(baseDir, "report") ?: return
+                val target = wrapper.file
+                target.writeText(HtmlReportGenerator.generate(node, screenshotBytes))
+                LocalFileSystem.getInstance().refreshAndFindFileByIoFile(target)
             }
             override fun update(e: AnActionEvent) {
                 e.presentation.isEnabled = rootNode != null
@@ -239,8 +258,10 @@ class ArpToolWindow(private val project: Project) {
             }
         }
         val treeActionGroup = DefaultActionGroup().apply {
-            add(viewSourceXmlAction)
+            add(exportHtmlAsAction)
+            addSeparator()
             add(exportHtmlAction)
+            add(viewSourceXmlAction)
             addSeparator()
             add(highlightMissingAccessibilityAction)
             addSeparator()
